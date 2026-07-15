@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@source "../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php";
+@source "../../storage/framework/views/*.php";
+@source "../**/*.blade.php";
+@source "../**/*.js";
+
+@theme {
+    --font-sans: "Poppins", sans-serif;
+}
+
+@layer base {
+    html {
+        font-family: "Poppins", sans-serif;
+    }
+
+    body {
+        @apply bg-slate-50 text-slate-800 antialiased;
+    }
+
+    button,
+    a,
+    input,
+    select,
+    textarea {
+        @apply transition duration-200;
+    }
+}
+
+[x-cloak] {
+    display: none !important;
+}
+
+.swal2-popup {
+    font-family: "Poppins", sans-serif;
+    border-radius: 1.5rem;
+}
+
+.swal2-confirm,
+.swal2-cancel {
+    border-radius: 0.75rem !important;
+    padding: 0.75rem 1.25rem !important;
+}
