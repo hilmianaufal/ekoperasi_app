@@ -150,6 +150,25 @@
                 <span>Angsuran</span>
 
             </a>
+            <a href="{{ route('shu-periods.index') }}"
+                class="{{ request()->routeIs('shu-periods.*')
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
+        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+
+                <i data-lucide="badge-percent" class="h-5 w-5"></i>
+                <span>Sisa Hasil Usaha</span>
+            </a>
+
+            <a href="{{ route('shu-payments.index') }}"
+                class="{{ request()->routeIs('shu-payments.*')
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
+        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+
+                <i data-lucide="receipt-text" class="h-5 w-5"></i>
+                <span>Pembayaran SHU</span>
+            </a>
 
             <a href="{{ route('cash-transactions.index') }}"
                 class="{{ request()->routeIs('cash-transactions.*')
@@ -160,6 +179,15 @@
                 <i data-lucide="arrow-left-right" class="h-5 w-5"></i>
                 <span>Kas Koperasi</span>
 
+            </a>
+            <a href="{{ route('cash-imports.index') }}"
+                class="{{ request()->routeIs('cash-imports.*')
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
+        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+
+                <i data-lucide="file-spreadsheet" class="h-5 w-5"></i>
+                <span>Import Kas Bulanan</span>
             </a>
 
             <p class="mb-3 mt-7 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
@@ -176,6 +204,26 @@
                 <span>Laporan</span>
 
             </a>
+            <a href="{{ route('financial-statements.index') }}"
+                class="{{ request()->routeIs('financial-statements.*')
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-950/30'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
+        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+
+                <i data-lucide="landmark" class="h-5 w-5"></i>
+                <span>Laporan Keuangan</span>
+            </a>
+
+            <a href="{{ route('trial-balance.index') }}"
+                class="{{ request()->routeIs('trial-balance.*')
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-950/30'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
+        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+
+                <i data-lucide="scale" class="h-5 w-5"></i>
+                <span>Neraca Saldo</span>
+            </a>
+
             <a href="{{ route('data-imports.index') }}"
                 class="{{ request()->routeIs('data-imports.*')
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
@@ -184,6 +232,25 @@
 
                 <i data-lucide="file-up" class="h-5 w-5"></i>
                 <span>Import Data Awal</span>
+            </a>
+            <a href="{{ route('accounting-accounts.index') }}"
+                class="{{ request()->routeIs('accounting-accounts.*')
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-950/30'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
+        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+
+                <i data-lucide="list-tree" class="h-5 w-5"></i>
+                <span>Daftar Akun</span>
+            </a>
+
+            <a href="{{ route('journal-entries.index') }}"
+                class="{{ request()->routeIs('journal-entries.*')
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950/30'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
+        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+
+                <i data-lucide="book-open-check" class="h-5 w-5"></i>
+                <span>Jurnal Umum</span>
             </a>
             <a href="{{ route('settings.edit') }}"
                 class="{{ request()->routeIs('settings.*')
@@ -229,7 +296,8 @@
                         @csrf
 
                         <button type="button" onclick="confirmLogout()"
-                            class="rounded-xl p-2 text-slate-400 hover:bg-red-500/15 hover:text-red-400" title="Keluar">
+                            class="rounded-xl p-2 text-slate-400 hover:bg-red-500/15 hover:text-red-400"
+                            title="Keluar">
 
                             <i data-lucide="log-out" class="h-5 w-5"></i>
 

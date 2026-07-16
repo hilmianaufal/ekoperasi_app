@@ -1,0 +1,59 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class JournalEntryLine extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'journal_entry_id',
+        'accounting_account_id',
+        'description',
+        'debit',
+        'credit',
+        'member_id',
+        'loan_id',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'debit' => 'decimal:2',
+            'credit' => 'decimal:2',
+        ];
+    }
+
+    public function journalEntry(): BelongsTo
+    {
+        return $this->belongsTo(
+            JournalEntry::class
+        );
+    }
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(
+            AccountingAccount::class,
+            'accounting_account_id'
+        );
+    }
+
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(
+            Member::class
+        );
+    }
+
+    public function loan(): BelongsTo
+    {
+        return $this->belongsTo(
+            Loan::class
+        );
+    }
+}

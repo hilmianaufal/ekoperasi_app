@@ -139,6 +139,69 @@
 
                 </section>
             @endif
+            @if ($importBatch->financing_imported_at)
+
+                <section class="mt-7 rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
+
+                    <div class="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+
+                        <div class="flex gap-4">
+
+                            <div class="h-fit rounded-2xl bg-blue-100 p-3 text-blue-600">
+                                <i data-lucide="badge-check" class="h-6 w-6"></i>
+                            </div>
+
+                            <div>
+
+                                <h3 class="font-bold text-blue-900">
+                                    Pembiayaan dan angsuran berhasil diimpor
+                                </h3>
+
+                                <p class="mt-2 text-sm leading-7 text-blue-700">
+                                    {{ number_format($importBatch->imported_loan_count ?? 0, 0, ',', '.') }}
+                                    pembiayaan,
+
+                                    {{ number_format($importBatch->imported_installment_count ?? 0, 0, ',', '.') }}
+                                    angsuran, dan
+
+                                    {{ number_format($importBatch->imported_payment_count ?? 0, 0, ',', '.') }}
+                                    pembayaran telah dimasukkan.
+                                </p>
+
+                                <p class="mt-1 text-xs text-blue-600">
+                                    Diproses
+                                    {{ $importBatch->financing_imported_at?->translatedFormat('d F Y H:i') }}
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                        <div class="flex flex-col gap-3 sm:flex-row">
+
+                            @if (\Illuminate\Support\Facades\Route::has('data-imports.reconciliation'))
+                                <a href="{{ route('data-imports.reconciliation', $importBatch) }}"
+                                    class="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-5 py-3 text-sm font-semibold text-blue-600 hover:bg-blue-100">
+
+                                    <i data-lucide="scale" class="h-5 w-5"></i>
+                                    Rekonsiliasi
+                                </a>
+                            @endif
+
+                            <a href="{{ route('loans.index') }}"
+                                class="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">
+
+                                <i data-lucide="landmark" class="h-5 w-5"></i>
+                                Lihat Pembiayaan
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+            @endif
             <form action="{{ route('data-imports.destroy', $importBatch) }}" method="POST" id="delete-import-form">
 
                 @csrf
@@ -553,7 +616,89 @@
             </section>
 
         </form>
+        @if ($importBatch->members_savings_imported_at && !$importBatch->financing_imported_at)
+            <section class="mt-7 rounded-3xl border border-blue-200 bg-white p-6 shadow-sm">
 
+                <div class="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+
+                    <div class="flex gap-4">
+
+                        <div class="h-fit rounded-2xl bg-blue-100 p-3 text-blue-600">
+                            <i data-lucide="landmark" class="h-6 w-6"></i>
+                        </div>
+
+                        <div>
+                            <h3 class="font-bold text-slate-900">
+                                Proses Pembiayaan & Angsuran Lama
+                            </h3>
+
+                            <p class="mt-2 max-w-2xl text-sm leading-7 text-slate-500">
+                                Sistem akan membuat pembiayaan lama, riwayat angsuran
+                                pokok, bagi hasil, administrasi, serta saldo pembiayaan
+                                akhir berdasarkan rekapan Excel.
+                            </p>
+                        </div>
+
+                    </div>
+
+                    <form action="{{ route('data-imports.process-financing', $importBatch) }}" method="POST"
+                        id="process-financing-form">
+
+                        @csrf
+
+                        <button type="button" onclick="confirmProcessFinancing()"
+                            class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-200 hover:bg-blue-700 lg:w-auto">
+
+                            <i data-lucide="database-zap" class="h-5 w-5"></i>
+                            Proses Pembiayaan
+
+                        </button>
+
+                    </form>
+
+                </div>
+
+            </section>
+        @endif
+
+        @if ($importBatch->financing_imported_at)
+            <section class="mt-7 rounded-3xl border border-blue-200 bg-blue-50 p-6">
+
+                <div class="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+
+                    <div class="flex gap-4">
+
+                        <div class="h-fit rounded-2xl bg-blue-100 p-3 text-blue-600">
+                            <i data-lucide="badge-check" class="h-6 w-6"></i>
+                        </div>
+
+                        <div>
+                            <h3 class="font-bold text-blue-900">
+                                Pembiayaan dan angsuran berhasil diimpor
+                            </h3>
+
+                            <p class="mt-2 text-sm text-blue-700">
+                                {{ number_format($importBatch->imported_loan_count, 0, ',', '.') }}
+                                pembiayaan dan
+                                {{ number_format($importBatch->imported_installment_count, 0, ',', '.') }}
+                                angsuran berhasil dibuat.
+                            </p>
+                        </div>
+
+                    </div>
+
+                    <a href="{{ route('loans.index') }}"
+                        class="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">
+
+                        <i data-lucide="landmark" class="h-5 w-5"></i>
+                        Lihat Pembiayaan
+
+                    </a>
+
+                </div>
+
+            </section>
+        @endif
         <section class="mt-7 rounded-3xl border border-blue-200 bg-blue-50 p-6">
 
             <div class="flex gap-4">
@@ -648,6 +793,51 @@
                         .getElementById(
                             'process-members-savings-form'
                         )
+                        .submit();
+                }
+            });
+        }
+
+        function confirmProcessFinancing() {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Proses pembiayaan lama?',
+                html: `
+            <div class="text-left text-sm leading-7">
+                <p>Sistem akan membuat:</p>
+                <ul class="mt-2 list-inside list-disc">
+                    <li>Pembiayaan lama setiap anggota</li>
+                    <li>Riwayat angsuran pokok</li>
+                    <li>Pembayaran bagi hasil</li>
+                    <li>Catatan biaya administrasi</li>
+                    <li>Saldo pembiayaan per cut-off</li>
+                </ul>
+                <p class="mt-3 font-semibold text-amber-600">
+                    Tenor dan tanggal akad lama akan ditandai sebagai data migrasi.
+                </p>
+            </div>
+        `,
+                showCancelButton: true,
+                confirmButtonText: 'Ya, proses',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#2563eb',
+                cancelButtonColor: '#64748b',
+                reverseButtons: true,
+                allowOutsideClick: false,
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Memproses pembiayaan',
+                        text: 'Mohon tunggu dan jangan menutup halaman.',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        },
+                    });
+
+                    document
+                        .getElementById('process-financing-form')
                         .submit();
                 }
             });

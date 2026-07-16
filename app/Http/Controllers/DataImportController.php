@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ImportBatch;
+use App\Services\Imports\ImportReconciliationService;
+use App\Services\Imports\LegacyFinancingImportService;
 use App\Services\Imports\MembersSavingsImportService;
 use App\Services\Imports\RekapAngsuranImportService;
 use Illuminate\Http\RedirectResponse;
@@ -267,13 +269,49 @@ class DataImportController extends Controller
         );
     }
 
+    public function processFinancing(
+        ImportBatch $importBatch,
+        LegacyFinancingImportService $importService
+    ): RedirectResponse {
+        try {
+            $result = $importService->import(
+                $importBatch,
+                auth()->id()
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->with(
+                'error',
+                'Import pembiayaan belum dapat diproses: '
+                    . $exception->getMessage()
+            );
+        }
+
+        return back()->with(
+            'success',
+            sprintf(
+                'Import pembiayaan berhasil. %d pembiayaan, %d angsuran, %d pembayaran, dan %d catatan audit dibuat.',
+                $result['loan_count'],
+                $result['installment_count'],
+                $result['payment_count'],
+                $result['entry_count']
+            )
+        );
+    }
+
+
     public function destroy(
         ImportBatch $importBatch
     ): RedirectResponse {
-        if ($importBatch->status === 'completed') {
+        if (
+            $importBatch->status === 'completed'
+            || $importBatch->members_savings_imported_at
+            || $importBatch->financing_imported_at
+        ) {
             return back()->with(
                 'error',
-                'Batch yang sudah selesai tidak dapat dihapus.'
+                'Batch yang sudah menghasilkan data anggota atau transaksi tidak dapat dihapus.'
             );
         }
 
@@ -315,6 +353,38 @@ class DataImportController extends Controller
                 $result['member_count'],
                 $result['new_member_count'],
                 $result['transaction_count']
+            )
+        );
+    }
+
+    public function reconciliation(
+        ImportBatch $importBatch,
+        ImportReconciliationService $reconciliationService
+    ): View {
+        try {
+            $reconciliation = $reconciliationService->build(
+                $importBatch
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return redirect()
+                ->route(
+                    'data-imports.show',
+                    $importBatch
+                )
+                ->with(
+                    'error',
+                    'Rekonsiliasi belum dapat ditampilkan: '
+                        . $exception->getMessage()
+                );
+        }
+
+        return view(
+            'data-imports.reconciliation',
+            compact(
+                'importBatch',
+                'reconciliation'
             )
         );
     }

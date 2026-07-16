@@ -22,6 +22,9 @@ class LoanInstallment extends Model
         'paid_at',
         'status',
         'notes',
+        'import_batch_id',
+        'import_row_id',
+        'reported_remaining_principal',
     ];
 
     protected function casts(): array
@@ -33,7 +36,18 @@ class LoanInstallment extends Model
             'interest_amount' => 'decimal:2',
             'total_amount' => 'decimal:2',
             'paid_amount' => 'decimal:2',
+            'reported_remaining_principal' => 'decimal:2',
         ];
+    }
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(ImportBatch::class);
+    }
+
+    public function importRow(): BelongsTo
+    {
+        return $this->belongsTo(ImportRow::class);
     }
 
     public function loan(): BelongsTo

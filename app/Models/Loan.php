@@ -30,6 +30,14 @@ class Loan extends Model
         'status',
         'approved_at',
         'rejection_reason',
+        'import_batch_id',
+        'source_number',
+        'is_legacy',
+        'opening_principal',
+        'disbursed_during_import',
+        'outstanding_principal',
+        'profit_share_paid',
+        'administration_paid',
     ];
 
     protected function casts(): array
@@ -44,6 +52,12 @@ class Loan extends Model
             'interest_amount' => 'decimal:2',
             'total_amount' => 'decimal:2',
             'monthly_installment' => 'decimal:2',
+            'is_legacy' => 'boolean',
+            'opening_principal' => 'decimal:2',
+            'disbursed_during_import' => 'decimal:2',
+            'outstanding_principal' => 'decimal:2',
+            'profit_share_paid' => 'decimal:2',
+            'administration_paid' => 'decimal:2',
         ];
     }
 
@@ -68,6 +82,16 @@ class Loan extends Model
             ->orderBy('installment_number');
     }
 
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(ImportBatch::class);
+    }
+
+    public function importEntries(): HasMany
+    {
+        return $this->hasMany(LoanImportEntry::class);
+    }
     public function getStatusLabelAttribute(): string
     {
         return match ($this->status) {

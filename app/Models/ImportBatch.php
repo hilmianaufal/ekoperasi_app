@@ -30,6 +30,10 @@ class ImportBatch extends Model
         'user_id',
         'members_savings_imported_at',
         'completed_at',
+        'imported_installment_count',
+        'imported_payment_count',
+        'imported_financing_entry_count',
+        'financing_imported_at',
     ];
 
     protected function casts(): array
@@ -39,6 +43,7 @@ class ImportBatch extends Model
             'warnings' => 'array',
             'completed_at' => 'datetime',
             'members_savings_imported_at' => 'datetime',
+            'financing_imported_at' => 'datetime',
         ];
     }
 
@@ -76,10 +81,11 @@ class ImportBatch extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        if (
-            $this->members_savings_imported_at
-            && $this->status !== 'completed'
-        ) {
+        if ($this->financing_imported_at) {
+            return 'Import Utama Selesai';
+        }
+
+        if ($this->members_savings_imported_at) {
             return 'Anggota & Simpanan Selesai';
         }
 

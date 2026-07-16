@@ -1,0 +1,4725 @@
+]633;E;{     echo "===== MODELS ====="\x3b      for file in         app/Models/Loan.php         app/Models/LoanInstallment.php         app/Models/InstallmentPayment.php         app/Models/LoanImportEntry.php         app/Models/SavingTransaction.php         app/Models/SavingType.php         app/Models/CashTransaction.php         app/Models/ShuPeriod.php         app/Models/ShuMemberAllocation.php         app/Models/Setting.php         app/Models/InstitutionSetting.php\x3b do         if [ -f "$file" ]\x3b then             echo ""\x3b             echo "===== FILE: $file ====="\x3b             cat "$file"\x3b         fi\x3b     done\x3b      echo ""\x3b     echo "===== MIGRATIONS ====="\x3b      for file in         database/migrations/*loan*         database/migrations/*installment*         database/migrations/*saving*         database/migrations/*cash*         database/migrations/*setting*         database/migrations/*shu*\x3b do         if [ -f "$file" ]\x3b then             echo ""\x3b             echo "===== FILE: $file ====="\x3b             cat "$file"\x3b         fi\x3b     done\x3b      echo ""\x3b     echo "===== REPORT CONTROLLERS ====="\x3b      find app/Http/Controllers -maxdepth 1 -type f         \\( -iname "*report*.php"         -o -iname "*financial*.php"         -o -iname "*cash*.php" \\)         -print0 |     while IFS= read -r -d '' file\x3b do         echo ""\x3b         echo "===== FILE: $file ====="\x3b         cat "$file"\x3b     done\x3b      echo ""\x3b     echo "===== REPORT SERVICES ====="\x3b      find app/Services -type f         \\( -iname "*report*.php"         -o -iname "*financial*.php"         -o -iname "*reconciliation*.php" \\)         -print0 |     while IFS= read -r -d '' file\x3b do         echo ""\x3b         echo "===== FILE: $file ====="\x3b         cat "$file"\x3b     done\x3b      echo ""\x3b     echo "===== REPORT ROUTES ====="\x3b      grep -n -i         -E "report|laporan|financial|position|cash-flow|shu"         routes/web.php\x3b  } > financial-report-context.txt;d0fcfce4-d9db-438b-a554-169e955fb72a]633;C===== MODELS =====
+
+===== FILE: app/Models/Loan.php =====
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Loan extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'loan_number',
+        'member_id',
+        'created_by',
+        'approved_by',
+        'application_date',
+        'principal_amount',
+        'interest_rate',
+        'tenor_months',
+        'interest_amount',
+        'total_amount',
+        'monthly_installment',
+        'start_date',
+        'maturity_date',
+        'purpose',
+        'notes',
+        'status',
+        'approved_at',
+        'rejection_reason',
+        'import_batch_id',
+        'source_number',
+        'is_legacy',
+        'opening_principal',
+        'disbursed_during_import',
+        'outstanding_principal',
+        'profit_share_paid',
+        'administration_paid',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'application_date' => 'date',
+            'start_date' => 'date',
+            'maturity_date' => 'date',
+            'approved_at' => 'datetime',
+            'principal_amount' => 'decimal:2',
+            'interest_rate' => 'decimal:2',
+            'interest_amount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+            'monthly_installment' => 'decimal:2',
+            'is_legacy' => 'boolean',
+            'opening_principal' => 'decimal:2',
+            'disbursed_during_import' => 'decimal:2',
+            'outstanding_principal' => 'decimal:2',
+            'profit_share_paid' => 'decimal:2',
+            'administration_paid' => 'decimal:2',
+        ];
+    }
+
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(Member::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function installments(): HasMany
+    {
+        return $this->hasMany(LoanInstallment::class)
+            ->orderBy('installment_number');
+    }
+
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(ImportBatch::class);
+    }
+
+    public function importEntries(): HasMany
+    {
+        return $this->hasMany(LoanImportEntry::class);
+    }
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'pending' => 'Menunggu Persetujuan',
+            'active' => 'Aktif',
+            'rejected' => 'Ditolak',
+            'paid' => 'Lunas',
+            'cancelled' => 'Dibatalkan',
+            default => ucfirst($this->status),
+        };
+    }
+}
+
+===== FILE: app/Models/LoanInstallment.php =====
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class LoanInstallment extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'loan_id',
+        'installment_number',
+        'due_date',
+        'principal_amount',
+        'interest_amount',
+        'total_amount',
+        'paid_amount',
+        'paid_at',
+        'status',
+        'notes',
+        'import_batch_id',
+        'import_row_id',
+        'reported_remaining_principal',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'due_date' => 'date',
+            'paid_at' => 'datetime',
+            'principal_amount' => 'decimal:2',
+            'interest_amount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+            'paid_amount' => 'decimal:2',
+            'reported_remaining_principal' => 'decimal:2',
+        ];
+    }
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(ImportBatch::class);
+    }
+
+    public function importRow(): BelongsTo
+    {
+        return $this->belongsTo(ImportRow::class);
+    }
+
+    public function loan(): BelongsTo
+    {
+        return $this->belongsTo(Loan::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(
+            InstallmentPayment::class,
+            'loan_installment_id'
+        )
+            ->latest('payment_date')
+            ->latest('id');
+    }
+
+    public function getRemainingAmountAttribute(): float
+    {
+        return max(
+            (float) $this->total_amount
+                - (float) $this->paid_amount,
+            0
+        );
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'unpaid' => 'Belum Dibayar',
+            'partial' => 'Dibayar Sebagian',
+            'paid' => 'Lunas',
+            'overdue' => 'Terlambat',
+            default => ucfirst($this->status),
+        };
+    }
+}
+
+===== FILE: app/Models/InstallmentPayment.php =====
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class InstallmentPayment extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'payment_code',
+        'loan_installment_id',
+        'user_id',
+        'payment_date',
+        'amount',
+        'remaining_after',
+        'payment_method',
+        'reference_number',
+        'notes',
+        'import_batch_id',
+        'import_row_id',
+        'principal_amount',
+        'profit_share_amount',
+        'administration_fee',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'payment_date' => 'date',
+            'amount' => 'decimal:2',
+            'remaining_after' => 'decimal:2',
+            'principal_amount' => 'decimal:2',
+            'profit_share_amount' => 'decimal:2',
+            'administration_fee' => 'decimal:2',
+        ];
+    }
+
+    public function installment(): BelongsTo
+    {
+        return $this->belongsTo(
+            LoanInstallment::class,
+            'loan_installment_id'
+        );
+    }
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(ImportBatch::class);
+    }
+
+    public function importRow(): BelongsTo
+    {
+        return $this->belongsTo(ImportRow::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function getPaymentMethodLabelAttribute(): string
+    {
+        return match ($this->payment_method) {
+            'cash' => 'Tunai',
+            'transfer' => 'Transfer',
+            'other' => 'Lainnya',
+            default => ucfirst($this->payment_method),
+        };
+    }
+}
+
+===== FILE: app/Models/LoanImportEntry.php =====
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class LoanImportEntry extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'import_batch_id',
+        'import_row_id',
+        'loan_id',
+        'member_id',
+        'period_date',
+        'opening_principal',
+        'new_financing',
+        'principal_payment',
+        'profit_share',
+        'administration_fee',
+        'reported_remaining',
+        'calculated_remaining',
+        'balance_adjustment',
+        'notes',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'period_date' => 'date',
+            'opening_principal' => 'decimal:2',
+            'new_financing' => 'decimal:2',
+            'principal_payment' => 'decimal:2',
+            'profit_share' => 'decimal:2',
+            'administration_fee' => 'decimal:2',
+            'reported_remaining' => 'decimal:2',
+            'calculated_remaining' => 'decimal:2',
+            'balance_adjustment' => 'decimal:2',
+        ];
+    }
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(
+            ImportBatch::class,
+            'import_batch_id'
+        );
+    }
+
+    public function importRow(): BelongsTo
+    {
+        return $this->belongsTo(
+            ImportRow::class
+        );
+    }
+
+    public function loan(): BelongsTo
+    {
+        return $this->belongsTo(Loan::class);
+    }
+
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(Member::class);
+    }
+}
+
+===== FILE: app/Models/SavingTransaction.php =====
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class SavingTransaction extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'transaction_code',
+        'member_id',
+        'saving_type_id',
+        'user_id',
+        'transaction_date',
+        'transaction_type',
+        'amount',
+        'balance_after',
+        'notes',
+        'import_batch_id',
+        'import_row_id',
+        'import_component',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'transaction_date' => 'date',
+            'amount' => 'decimal:2',
+            'balance_after' => 'decimal:2',
+        ];
+    }
+
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(Member::class);
+    }
+
+    public function savingType(): BelongsTo
+    {
+        return $this->belongsTo(SavingType::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function getTransactionTypeLabelAttribute(): string
+    {
+        return $this->transaction_type === 'deposit'
+            ? 'Setoran'
+            : 'Penarikan';
+    }
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(
+            ImportBatch::class
+        );
+    }
+
+    public function importRow(): BelongsTo
+    {
+        return $this->belongsTo(
+            ImportRow::class
+        );
+    }
+}
+
+===== FILE: app/Models/SavingType.php =====
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class SavingType extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'name',
+        'code',
+        'description',
+        'default_amount',
+        'is_withdrawable',
+        'is_active',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'default_amount' => 'decimal:2',
+            'is_withdrawable' => 'boolean',
+            'is_active' => 'boolean',
+        ];
+    }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(SavingTransaction::class);
+    }
+}
+
+===== FILE: app/Models/CashTransaction.php =====
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class CashTransaction extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'transaction_code',
+        'transaction_date',
+        'direction',
+        'category',
+        'amount',
+        'payment_method',
+        'description',
+        'source_type',
+        'source_id',
+        'user_id',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'transaction_date' => 'date',
+            'amount' => 'decimal:2',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::created(function (CashTransaction $transaction): void {
+            if ($transaction->transaction_code) {
+                return;
+            }
+
+            $transaction->updateQuietly([
+                'transaction_code' => sprintf(
+                    'KAS-%s-%06d',
+                    $transaction->transaction_date->format('Ymd'),
+                    $transaction->id
+                ),
+            ]);
+        });
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function scopeIncome(Builder $query): Builder
+    {
+        return $query->where('direction', 'income');
+    }
+
+    public function scopeExpense(Builder $query): Builder
+    {
+        return $query->where('direction', 'expense');
+    }
+
+    public function getDirectionLabelAttribute(): string
+    {
+        return $this->direction === 'income'
+            ? 'Kas Masuk'
+            : 'Kas Keluar';
+    }
+
+    public function getPaymentMethodLabelAttribute(): string
+    {
+        return match ($this->payment_method) {
+            'cash' => 'Tunai',
+            'transfer' => 'Transfer',
+            'other' => 'Lainnya',
+            default => ucfirst($this->payment_method),
+        };
+    }
+
+    public function getSourceLabelAttribute(): string
+    {
+        return match ($this->source_type) {
+            'saving_transaction' => 'Transaksi Simpanan',
+            'loan_disbursement' => 'Pencairan Pinjaman',
+            'installment_payment' => 'Pembayaran Angsuran',
+            'shu_payment' => 'Pembayaran SHU',
+            default => 'Transaksi Manual',
+        };
+    }
+}
+
+===== FILE: app/Models/ShuPeriod.php =====
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class ShuPeriod extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'code',
+        'year',
+        'calculation_date',
+        'business_service_rate',
+        'saving_service_rate',
+        'declared_total_shu',
+        'declared_member_shu',
+        'declared_business_service',
+        'declared_saving_service',
+        'status',
+        'notes',
+        'approved_by',
+        'approved_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'calculation_date' => 'date',
+            'business_service_rate' => 'decimal:4',
+            'saving_service_rate' => 'decimal:4',
+            'declared_total_shu' => 'decimal:2',
+            'declared_member_shu' => 'decimal:2',
+            'declared_business_service' => 'decimal:2',
+            'declared_saving_service' => 'decimal:2',
+            'approved_at' => 'datetime',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::created(function (ShuPeriod $period): void {
+            if ($period->code) {
+                return;
+            }
+
+            $period->updateQuietly([
+                'code' => sprintf(
+                    'SHU-%d-%04d',
+                    $period->year,
+                    $period->id
+                ),
+            ]);
+        });
+    }
+
+    public function importBatches(): HasMany
+    {
+        return $this->hasMany(ShuImportBatch::class);
+    }
+
+    public function allocations(): HasMany
+    {
+        return $this->hasMany(
+            ShuMemberAllocation::class
+        );
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'approved_by'
+        );
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'draft' => 'Draft',
+            'review' => 'Perlu Rekonsiliasi',
+            'approved' => 'Disetujui',
+            'distributed' => 'Sudah Dibagikan',
+            default => ucfirst($this->status),
+        };
+    }
+}
+
+===== FILE: app/Models/ShuMemberAllocation.php =====
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class ShuMemberAllocation extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'shu_period_id',
+        'shu_import_row_id',
+        'member_id',
+        'source_number',
+        'receivable_balance',
+        'profit_share_base',
+        'principal_saving',
+        'mandatory_saving',
+        'saving_balance',
+        'business_service_amount',
+        'saving_service_amount',
+        'total_shu',
+        'paid_amount',
+        'payment_status',
+        'paid_at',
+        'notes',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'receivable_balance' => 'decimal:2',
+            'profit_share_base' => 'decimal:2',
+            'principal_saving' => 'decimal:2',
+            'mandatory_saving' => 'decimal:2',
+            'saving_balance' => 'decimal:2',
+            'business_service_amount' => 'decimal:2',
+            'saving_service_amount' => 'decimal:2',
+            'total_shu' => 'decimal:2',
+            'paid_amount' => 'decimal:2',
+            'paid_at' => 'datetime',
+        ];
+    }
+
+    public function period(): BelongsTo
+    {
+        return $this->belongsTo(
+            ShuPeriod::class,
+            'shu_period_id'
+        );
+    }
+
+    public function importRow(): BelongsTo
+    {
+        return $this->belongsTo(
+            ShuImportRow::class,
+            'shu_import_row_id'
+        );
+    }
+
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(Member::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(ShuPayment::class);
+    }
+
+    public function getRemainingAmountAttribute(): float
+    {
+        return max(
+            (float) $this->total_shu
+                - (float) $this->paid_amount,
+            0
+        );
+    }
+}
+
+===== MIGRATIONS =====
+
+===== FILE: database/migrations/2026_07_15_000957_create_loans_table.php =====
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('loans', function (Blueprint $table) {
+            $table->id();
+
+            $table->string('loan_number')
+                ->nullable()
+                ->unique();
+
+            $table->foreignId('member_id')
+                ->constrained()
+                ->restrictOnDelete();
+
+            $table->foreignId('created_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('approved_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->date('application_date');
+
+            $table->decimal('principal_amount', 15, 2);
+            $table->decimal('interest_rate', 5, 2)->default(0);
+            $table->unsignedSmallInteger('tenor_months');
+
+            $table->decimal('interest_amount', 15, 2)->default(0);
+            $table->decimal('total_amount', 15, 2)->default(0);
+            $table->decimal('monthly_installment', 15, 2)->default(0);
+
+            $table->date('start_date')->nullable();
+            $table->date('maturity_date')->nullable();
+
+            $table->text('purpose');
+            $table->text('notes')->nullable();
+
+            $table->enum('status', [
+                'pending',
+                'active',
+                'rejected',
+                'paid',
+                'cancelled',
+            ])->default('pending');
+
+            $table->timestamp('approved_at')->nullable();
+            $table->text('rejection_reason')->nullable();
+
+            $table->timestamps();
+
+            $table->index([
+                'member_id',
+                'status',
+                'application_date',
+            ]);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('loans');
+    }
+};
+
+===== FILE: database/migrations/2026_07_15_001946_create_installment_payments_table.php =====
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('installment_payments', function (Blueprint $table) {
+            $table->id();
+
+            $table->string('payment_code')
+                ->nullable()
+                ->unique();
+
+            $table->foreignId('loan_installment_id')
+                ->constrained('loan_installments')
+                ->restrictOnDelete();
+
+            $table->foreignId('user_id')
+                ->nullable()
+                ->constrained()
+                ->nullOnDelete();
+
+            $table->date('payment_date');
+
+            $table->decimal('amount', 15, 2);
+
+            $table->decimal('remaining_after', 15, 2)
+                ->default(0);
+
+            $table->enum('payment_method', [
+                'cash',
+                'transfer',
+                'other',
+            ])->default('cash');
+
+            $table->string('reference_number')
+                ->nullable();
+
+            $table->text('notes')
+                ->nullable();
+
+            $table->timestamps();
+
+            $table->index([
+                'payment_date',
+                'payment_method',
+            ]);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('installment_payments');
+    }
+};
+
+===== FILE: database/migrations/2026_07_14_235552_create_saving_types_table.php =====
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('saving_types', function (Blueprint $table) {
+            $table->id();
+            $table->string('name', 100);
+            $table->string('code', 20)->unique();
+            $table->text('description')->nullable();
+            $table->decimal('default_amount', 15, 2)->default(0);
+            $table->boolean('is_withdrawable')->default(false);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('saving_types');
+    }
+};
+
+===== FILE: database/migrations/2026_07_15_010000_create_saving_transactions_table.php =====
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('saving_transactions', function (Blueprint $table) {
+            $table->id();
+
+            $table->string('transaction_code')
+                ->nullable()
+                ->unique();
+
+            $table->foreignId('member_id')
+                ->constrained('members')
+                ->restrictOnDelete();
+
+            $table->foreignId('saving_type_id')
+                ->constrained('saving_types')
+                ->restrictOnDelete();
+
+            $table->foreignId('user_id')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->date('transaction_date');
+
+            $table->enum('transaction_type', [
+                'deposit',
+                'withdrawal',
+            ]);
+
+            $table->decimal('amount', 15, 2);
+
+            $table->decimal('balance_after', 15, 2)
+                ->default(0);
+
+            $table->text('notes')
+                ->nullable();
+
+            $table->timestamps();
+
+            $table->index(
+                [
+                    'member_id',
+                    'saving_type_id',
+                    'transaction_date',
+                ],
+                'saving_member_type_date_idx'
+            );
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('saving_transactions');
+    }
+};
+
+===== FILE: database/migrations/2026_07_15_233538_prepare_tables_for_member_saving_import.php =====
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        /*
+         * Data lama client belum memiliki jenis kelamin
+         * dan tanggal bergabung masing-masing anggota.
+         */
+        Schema::table('members', function (Blueprint $table) {
+            $table->enum('gender', [
+                'male',
+                'female',
+            ])->nullable()->change();
+
+            $table->date('join_date')
+                ->nullable()
+                ->change();
+        });
+
+        Schema::table('import_batches', function (Blueprint $table) {
+            $table->timestamp('members_savings_imported_at')
+                ->nullable()
+                ->after('completed_at');
+        });
+
+        Schema::table('saving_transactions', function (Blueprint $table) {
+            $table->foreignId('import_batch_id')
+                ->nullable()
+                ->after('user_id')
+                ->constrained('import_batches')
+                ->nullOnDelete();
+
+            $table->foreignId('import_row_id')
+                ->nullable()
+                ->after('import_batch_id')
+                ->constrained('import_rows')
+                ->nullOnDelete();
+
+            $table->string('import_component', 60)
+                ->nullable()
+                ->after('import_row_id');
+
+            $table->unique(
+                [
+                    'import_row_id',
+                    'import_component',
+                ],
+                'saving_import_component_unique'
+            );
+
+            $table->index(
+                [
+                    'import_batch_id',
+                    'member_id',
+                ],
+                'saving_import_member_idx'
+            );
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('saving_transactions', function (Blueprint $table) {
+            $table->dropUnique(
+                'saving_import_component_unique'
+            );
+
+            $table->dropIndex(
+                'saving_import_member_idx'
+            );
+
+            $table->dropConstrainedForeignId(
+                'import_row_id'
+            );
+
+            $table->dropConstrainedForeignId(
+                'import_batch_id'
+            );
+
+            $table->dropColumn(
+                'import_component'
+            );
+        });
+
+        Schema::table('import_batches', function (Blueprint $table) {
+            $table->dropColumn(
+                'members_savings_imported_at'
+            );
+        });
+
+        /*
+         * Kolom gender dan join_date tidak dikembalikan
+         * menjadi wajib agar data anggota hasil migrasi
+         * yang belum lengkap tidak rusak.
+         */
+    }
+};
+
+===== FILE: database/migrations/2026_07_15_002803_create_cash_transactions_table.php =====
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('cash_transactions', function (Blueprint $table) {
+            $table->id();
+
+            $table->string('transaction_code')
+                ->nullable()
+                ->unique();
+
+            $table->date('transaction_date');
+
+            $table->enum('direction', [
+                'income',
+                'expense',
+            ]);
+
+            $table->string('category', 150);
+
+            $table->decimal('amount', 15, 2);
+
+            $table->enum('payment_method', [
+                'cash',
+                'transfer',
+                'other',
+            ])->default('cash');
+
+            $table->text('description')->nullable();
+
+            $table->string('source_type', 100)->nullable();
+            $table->unsignedBigInteger('source_id')->nullable();
+
+            $table->foreignId('user_id')
+                ->nullable()
+                ->constrained()
+                ->nullOnDelete();
+
+            $table->timestamps();
+
+            $table->unique([
+                'source_type',
+                'source_id',
+            ]);
+
+            $table->index([
+                'transaction_date',
+                'direction',
+            ]);
+
+            $table->index('category');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('cash_transactions');
+    }
+};
+
+===== FILE: database/migrations/2026_07_16_005945_create_cash_import_batches_table.php =====
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('cash_import_batches', function (Blueprint $table) {
+            $table->id();
+
+            $table->string('code')
+                ->nullable()
+                ->unique();
+
+            $table->foreignId('data_import_batch_id')
+                ->constrained('import_batches')
+                ->restrictOnDelete();
+
+            $table->string('original_name');
+            $table->string('stored_path');
+
+            $table->char('file_hash', 64)
+                ->index();
+
+            $table->date('cutoff_date');
+
+            $table->enum('status', [
+                'uploaded',
+                'previewed',
+                'processing',
+                'completed',
+                'failed',
+                'cancelled',
+            ])->default('uploaded');
+
+            $table->unsignedInteger('sheet_count')
+                ->default(0);
+
+            $table->unsignedInteger('row_count')
+                ->default(0);
+
+            $table->unsignedInteger('imported_cash_count')
+                ->default(0);
+
+            $table->json('warnings')
+                ->nullable();
+
+            $table->text('error_message')
+                ->nullable();
+
+            $table->foreignId('user_id')
+                ->nullable()
+                ->constrained()
+                ->nullOnDelete();
+
+            $table->timestamp('processed_at')
+                ->nullable();
+
+            $table->timestamps();
+
+            $table->unique(
+                [
+                    'data_import_batch_id',
+                    'file_hash',
+                ],
+                'cash_import_file_unique'
+            );
+
+            $table->index(
+                [
+                    'status',
+                    'created_at',
+                ],
+                'cash_import_status_idx'
+            );
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('cash_import_batches');
+    }
+};
+
+===== FILE: database/migrations/2026_07_16_005946_create_cash_import_rows_table.php =====
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('cash_import_rows', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('cash_import_batch_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+            $table->string('sheet_name');
+            $table->unsignedSmallInteger('row_number');
+            $table->date('period_date');
+
+            $table->string('description')
+                ->nullable();
+
+            $table->string('income_code', 30)
+                ->nullable();
+
+            $table->decimal('financing_expense', 15, 2)
+                ->default(0);
+
+            $table->decimal('principal_refund', 15, 2)
+                ->default(0);
+
+            $table->decimal('mandatory_refund', 15, 2)
+                ->default(0);
+
+            $table->decimal('voluntary_withdrawal', 15, 2)
+                ->default(0);
+
+            $table->decimal('transport_expense', 15, 2)
+                ->default(0);
+
+            $table->decimal('other_expense', 15, 2)
+                ->default(0);
+
+            $table->decimal('installment_income', 15, 2)
+                ->default(0);
+
+            $table->decimal('profit_share_income', 15, 2)
+                ->default(0);
+
+            $table->decimal('administration_income', 15, 2)
+                ->default(0);
+
+            $table->decimal('principal_deposit', 15, 2)
+                ->default(0);
+
+            $table->decimal('mandatory_deposit', 15, 2)
+                ->default(0);
+
+            $table->decimal('voluntary_deposit', 15, 2)
+                ->default(0);
+
+            $table->json('raw_data')
+                ->nullable();
+
+            $table->enum('status', [
+                'pending',
+                'ready',
+                'imported',
+                'skipped',
+                'error',
+            ])->default('pending');
+
+            $table->text('message')
+                ->nullable();
+
+            $table->timestamps();
+
+            $table->unique(
+                [
+                    'cash_import_batch_id',
+                    'sheet_name',
+                    'row_number',
+                ],
+                'cash_import_row_unique'
+            );
+
+            $table->index(
+                [
+                    'cash_import_batch_id',
+                    'period_date',
+                ],
+                'cash_import_period_idx'
+            );
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('cash_import_rows');
+    }
+};
+
+===== FILE: database/migrations/2026_07_15_064717_create_app_settings_table.php =====
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('app_settings', function (Blueprint $table) {
+            $table->id();
+
+            $table->string('cooperative_name')
+                ->default('e-Koperasi');
+
+            $table->string('short_name')
+                ->default('e-Koperasi');
+
+            $table->string('tagline')
+                ->nullable();
+
+            $table->string('registration_number')
+                ->nullable();
+
+            $table->text('address')
+                ->nullable();
+
+            $table->string('phone', 30)
+                ->nullable();
+
+            $table->string('email')
+                ->nullable();
+
+            $table->string('chairman_name')
+                ->nullable();
+
+            $table->string('treasurer_name')
+                ->nullable();
+
+            $table->string('logo')
+                ->nullable();
+
+            $table->decimal(
+                'default_interest_rate',
+                5,
+                2
+            )->default(1);
+
+            $table->unsignedSmallInteger(
+                'default_tenor_months'
+            )->default(12);
+
+            $table->decimal(
+                'minimum_loan_amount',
+                15,
+                2
+            )->default(100000);
+
+            $table->decimal(
+                'maximum_loan_amount',
+                15,
+                2
+            )->nullable();
+
+            $table->text('receipt_footer')
+                ->nullable();
+
+            $table->string('timezone')
+                ->default('Asia/Jakarta');
+
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('app_settings');
+    }
+};
+
+===== FILE: database/migrations/2026_07_16_012315_create_shu_module_tables.php =====
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('shu_periods', function (Blueprint $table) {
+            $table->id();
+
+            $table->string('code')
+                ->nullable()
+                ->unique();
+
+            $table->unsignedSmallInteger('year')
+                ->unique();
+
+            $table->date('calculation_date');
+
+            $table->decimal(
+                'business_service_rate',
+                8,
+                4
+            )->default(18);
+
+            $table->decimal(
+                'saving_service_rate',
+                8,
+                4
+            )->default(6);
+
+            /*
+             * Total SHU berdasarkan laporan keuangan/RAT.
+             */
+            $table->decimal(
+                'declared_total_shu',
+                15,
+                2
+            )->default(0);
+
+            /*
+             * Bagian SHU yang dialokasikan kepada anggota.
+             */
+            $table->decimal(
+                'declared_member_shu',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'declared_business_service',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'declared_saving_service',
+                15,
+                2
+            )->default(0);
+
+            $table->enum('status', [
+                'draft',
+                'review',
+                'approved',
+                'distributed',
+            ])->default('draft');
+
+            $table->text('notes')
+                ->nullable();
+
+            $table->foreignId('approved_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->timestamp('approved_at')
+                ->nullable();
+
+            $table->timestamps();
+
+            $table->index(
+                ['status', 'year'],
+                'shu_period_status_year_idx'
+            );
+        });
+
+        Schema::create('shu_import_batches', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('shu_period_id')
+                ->constrained('shu_periods')
+                ->cascadeOnDelete();
+
+            $table->string('code')
+                ->nullable()
+                ->unique();
+
+            $table->string('original_name');
+            $table->string('stored_path');
+
+            $table->char('file_hash', 64)
+                ->index();
+
+            $table->enum('status', [
+                'uploaded',
+                'previewed',
+                'processing',
+                'completed',
+                'failed',
+                'cancelled',
+            ])->default('uploaded');
+
+            $table->unsignedInteger('row_count')
+                ->default(0);
+
+            $table->unsignedInteger('matched_count')
+                ->default(0);
+
+            $table->unsignedInteger('review_count')
+                ->default(0);
+
+            $table->unsignedInteger('imported_count')
+                ->default(0);
+
+            $table->json('warnings')
+                ->nullable();
+
+            $table->text('error_message')
+                ->nullable();
+
+            $table->foreignId('user_id')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->timestamp('processed_at')
+                ->nullable();
+
+            $table->timestamps();
+
+            $table->unique(
+                [
+                    'shu_period_id',
+                    'file_hash',
+                ],
+                'shu_import_period_file_unique'
+            );
+        });
+
+        Schema::create('shu_import_rows', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('shu_import_batch_id')
+                ->constrained('shu_import_batches')
+                ->cascadeOnDelete();
+
+            $table->string('sheet_name');
+            $table->unsignedSmallInteger('row_number');
+
+            $table->unsignedSmallInteger('source_number')
+                ->nullable();
+
+            $table->string('source_name');
+            $table->string('normalized_name');
+
+            $table->foreignId('member_id')
+                ->nullable()
+                ->constrained('members')
+                ->nullOnDelete();
+
+            $table->decimal(
+                'receivable_balance',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'profit_share_base',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'principal_saving',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'mandatory_saving',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'saving_balance',
+                15,
+                2
+            )->default(0);
+
+            /*
+             * Nilai yang tertulis pada file client.
+             */
+            $table->decimal(
+                'source_business_service',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'source_saving_service',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'source_total_shu',
+                15,
+                2
+            )->default(0);
+
+            /*
+             * Nilai hasil hitung ulang aplikasi.
+             */
+            $table->decimal(
+                'calculated_business_service',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'calculated_saving_service',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'calculated_total_shu',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'difference',
+                15,
+                2
+            )->default(0);
+
+            $table->enum('status', [
+                'new',
+                'matched',
+                'review',
+                'ignored',
+                'imported',
+            ])->default('new');
+
+            $table->json('raw_data')
+                ->nullable();
+
+            $table->text('notes')
+                ->nullable();
+
+            $table->timestamps();
+
+            $table->unique(
+                [
+                    'shu_import_batch_id',
+                    'sheet_name',
+                    'row_number',
+                ],
+                'shu_import_row_unique'
+            );
+
+            $table->index(
+                [
+                    'shu_import_batch_id',
+                    'source_number',
+                ],
+                'shu_import_source_idx'
+            );
+        });
+
+        Schema::create('shu_member_allocations', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('shu_period_id')
+                ->constrained('shu_periods')
+                ->cascadeOnDelete();
+
+            $table->foreignId('shu_import_row_id')
+                ->nullable()
+                ->constrained('shu_import_rows')
+                ->nullOnDelete();
+
+            $table->foreignId('member_id')
+                ->constrained('members')
+                ->restrictOnDelete();
+
+            $table->unsignedSmallInteger('source_number')
+                ->nullable();
+
+            $table->decimal(
+                'receivable_balance',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'profit_share_base',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'principal_saving',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'mandatory_saving',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'saving_balance',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'business_service_amount',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'saving_service_amount',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'total_shu',
+                15,
+                2
+            )->default(0);
+
+            $table->decimal(
+                'paid_amount',
+                15,
+                2
+            )->default(0);
+
+            $table->enum('payment_status', [
+                'unpaid',
+                'partial',
+                'paid',
+            ])->default('unpaid');
+
+            $table->timestamp('paid_at')
+                ->nullable();
+
+            $table->text('notes')
+                ->nullable();
+
+            $table->timestamps();
+
+            $table->unique(
+                [
+                    'shu_period_id',
+                    'member_id',
+                ],
+                'shu_period_member_unique'
+            );
+
+            $table->unique(
+                'shu_import_row_id',
+                'shu_allocation_import_row_unique'
+            );
+        });
+
+        Schema::create('shu_payments', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('shu_member_allocation_id')
+                ->constrained('shu_member_allocations')
+                ->restrictOnDelete();
+
+            $table->string('payment_code')
+                ->nullable()
+                ->unique();
+
+            $table->date('payment_date');
+
+            $table->decimal(
+                'amount',
+                15,
+                2
+            );
+
+            $table->enum('payment_method', [
+                'cash',
+                'transfer',
+                'other',
+            ])->default('cash');
+
+            $table->string('reference_number')
+                ->nullable();
+
+            $table->foreignId('user_id')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->text('notes')
+                ->nullable();
+
+            $table->timestamps();
+
+            $table->index(
+                [
+                    'payment_date',
+                    'payment_method',
+                ],
+                'shu_payment_date_method_idx'
+            );
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('shu_payments');
+        Schema::dropIfExists('shu_member_allocations');
+        Schema::dropIfExists('shu_import_rows');
+        Schema::dropIfExists('shu_import_batches');
+        Schema::dropIfExists('shu_periods');
+    }
+};
+
+===== REPORT CONTROLLERS =====
+
+===== FILE: app/Http/Controllers/CashImportController.php =====
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\CashImportBatch;
+use App\Models\ImportBatch;
+use App\Services\Imports\CashImportReconciliationService;
+use App\Services\Imports\CashMonthlyImportService;
+use App\Services\Imports\CashMonthlyParserService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
+use Throwable;
+
+class CashImportController extends Controller
+{
+    public function index(): View
+    {
+        $dataImportBatches = ImportBatch::query()
+            ->whereNotNull('members_savings_imported_at')
+            ->whereNotNull('financing_imported_at')
+            ->latest()
+            ->get([
+                'id',
+                'code',
+                'original_name',
+                'cutoff_date',
+            ]);
+
+        $batches = CashImportBatch::query()
+            ->with([
+                'dataImportBatch:id,code,original_name',
+                'user:id,name',
+            ])
+            ->latest()
+            ->paginate(10);
+
+        return view(
+            'cash-imports.index',
+            compact(
+                'dataImportBatches',
+                'batches'
+            )
+        );
+    }
+
+    public function store(
+        Request $request,
+        CashMonthlyParserService $parser
+    ): RedirectResponse {
+        $data = $request->validate([
+            'data_import_batch_id' => [
+                'required',
+                'exists:import_batches,id',
+            ],
+            'file' => [
+                'required',
+                'file',
+                'mimes:xlsx,xls',
+                'max:10240',
+            ],
+            'cutoff_date' => [
+                'required',
+                'date',
+            ],
+        ]);
+
+        $dataBatch = ImportBatch::query()
+            ->findOrFail(
+                $data['data_import_batch_id']
+            );
+
+        if (
+            !$dataBatch->members_savings_imported_at
+            || !$dataBatch->financing_imported_at
+        ) {
+            return back()
+                ->withInput()
+                ->with(
+                    'error',
+                    'Batch utama belum selesai diproses.'
+                );
+        }
+
+        $file = $request->file('file');
+
+        $fileHash = hash_file(
+            'sha256',
+            $file->getRealPath()
+        );
+
+        $duplicate = CashImportBatch::query()
+            ->where(
+                'data_import_batch_id',
+                $dataBatch->id
+            )
+            ->where('file_hash', $fileHash)
+            ->first();
+
+        if ($duplicate) {
+            return redirect()
+                ->route(
+                    'cash-imports.show',
+                    $duplicate
+                )
+                ->with(
+                    'error',
+                    'File kas yang sama sudah pernah diunggah.'
+                );
+        }
+
+        $storedName = sprintf(
+            '%s-%s.%s',
+            now()->format('YmdHis'),
+            bin2hex(random_bytes(4)),
+            strtolower(
+                $file->getClientOriginalExtension()
+            )
+        );
+
+        $storedPath = $file->storeAs(
+            'cash-imports',
+            $storedName,
+            'local'
+        );
+
+        $batch = CashImportBatch::create([
+            'data_import_batch_id' => $dataBatch->id,
+            'original_name'
+                => $file->getClientOriginalName(),
+
+            'stored_path' => $storedPath,
+            'file_hash' => $fileHash,
+            'cutoff_date' => $data['cutoff_date'],
+            'status' => 'uploaded',
+            'user_id' => auth()->id(),
+        ]);
+
+        try {
+            $parser->parse($batch);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            $batch->update([
+                'status' => 'failed',
+                'error_message'
+                    => $exception->getMessage(),
+            ]);
+
+            return redirect()
+                ->route(
+                    'cash-imports.show',
+                    $batch
+                )
+                ->with(
+                    'error',
+                    'File kas gagal dibaca: '
+                    . $exception->getMessage()
+                );
+        }
+
+        return redirect()
+            ->route(
+                'cash-imports.show',
+                $batch
+            )
+            ->with(
+                'success',
+                'File kas berhasil dibaca. Silakan periksa preview.'
+            );
+    }
+
+    public function show(
+        CashImportBatch $cashImportBatch,
+        CashImportReconciliationService $reconciliationService
+    ): View {
+        $cashImportBatch->load([
+            'dataImportBatch:id,code,original_name,cutoff_date',
+            'user:id,name',
+        ]);
+
+        $monthlySummaries = $cashImportBatch
+            ->rows()
+            ->select([
+                'sheet_name',
+                'period_date',
+            ])
+            ->selectRaw(
+                'COUNT(*) AS source_rows'
+            )
+            ->selectRaw(
+                'SUM(financing_expense) AS financing_expense'
+            )
+            ->selectRaw(
+                'SUM(voluntary_withdrawal) AS voluntary_withdrawal'
+            )
+            ->selectRaw(
+                'SUM(transport_expense) AS transport_expense'
+            )
+            ->selectRaw(
+                'SUM(other_expense) AS other_expense'
+            )
+            ->selectRaw(
+                'SUM(installment_income) AS installment_income'
+            )
+            ->selectRaw(
+                'SUM(profit_share_income) AS profit_share_income'
+            )
+            ->selectRaw(
+                'SUM(administration_income) AS administration_income'
+            )
+            ->selectRaw(
+                'SUM(principal_deposit) AS principal_deposit'
+            )
+            ->selectRaw(
+                'SUM(mandatory_deposit) AS mandatory_deposit'
+            )
+            ->selectRaw(
+                'SUM(voluntary_deposit) AS voluntary_deposit'
+            )
+            ->groupBy([
+                'sheet_name',
+                'period_date',
+            ])
+            ->orderBy('period_date')
+            ->get();
+
+        $reconciliation = $cashImportBatch
+            ->processed_at
+                ? $reconciliationService->build(
+                    $cashImportBatch
+                )
+                : null;
+
+        return view(
+            'cash-imports.show',
+            compact(
+                'cashImportBatch',
+                'monthlySummaries',
+                'reconciliation'
+            )
+        );
+    }
+
+    public function process(
+        CashImportBatch $cashImportBatch,
+        CashMonthlyImportService $importService
+    ): RedirectResponse {
+        try {
+            $result = $importService->import(
+                $cashImportBatch,
+                auth()->id()
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->with(
+                'error',
+                'Import kas gagal diproses: '
+                . $exception->getMessage()
+            );
+        }
+
+        return back()->with(
+            'success',
+            sprintf(
+                'Import kas berhasil. %d transaksi kas dibuat.',
+                $result['created_count']
+            )
+        );
+    }
+
+    public function destroy(
+        CashImportBatch $cashImportBatch
+    ): RedirectResponse {
+        if ($cashImportBatch->processed_at) {
+            return back()->with(
+                'error',
+                'Batch kas yang sudah diproses tidak dapat dihapus.'
+            );
+        }
+
+        Storage::disk('local')
+            ->delete(
+                $cashImportBatch->stored_path
+            );
+
+        $cashImportBatch->delete();
+
+        return redirect()
+            ->route('cash-imports.index')
+            ->with(
+                'success',
+                'Batch kas berhasil dihapus.'
+            );
+    }
+}
+
+===== FILE: app/Http/Controllers/CashTransactionController.php =====
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\CashTransaction;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+
+class CashTransactionController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $search = trim((string) $request->input('search'));
+        $direction = $request->input('direction');
+        $category = $request->input('category');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+
+        $transactions = CashTransaction::query()
+            ->with('user:id,name')
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($subQuery) use ($search) {
+                    $subQuery
+                        ->where(
+                            'transaction_code',
+                            'like',
+                            "%{$search}%"
+                        )
+                        ->orWhere(
+                            'category',
+                            'like',
+                            "%{$search}%"
+                        )
+                        ->orWhere(
+                            'description',
+                            'like',
+                            "%{$search}%"
+                        );
+                });
+            })
+            ->when(
+                in_array($direction, [
+                    'income',
+                    'expense',
+                ], true),
+                fn ($query) => $query->where(
+                    'direction',
+                    $direction
+                )
+            )
+            ->when(
+                $category,
+                fn ($query) => $query->where(
+                    'category',
+                    $category
+                )
+            )
+            ->when(
+                $dateFrom,
+                fn ($query) => $query->whereDate(
+                    'transaction_date',
+                    '>=',
+                    $dateFrom
+                )
+            )
+            ->when(
+                $dateTo,
+                fn ($query) => $query->whereDate(
+                    'transaction_date',
+                    '<=',
+                    $dateTo
+                )
+            )
+            ->latest('transaction_date')
+            ->latest('id')
+            ->paginate(15)
+            ->withQueryString();
+
+        $totalIncome = (float) CashTransaction::income()
+            ->sum('amount');
+
+        $totalExpense = (float) CashTransaction::expense()
+            ->sum('amount');
+
+        $statistics = [
+            'income' => $totalIncome,
+            'expense' => $totalExpense,
+            'balance' => $totalIncome - $totalExpense,
+
+            'today' => (float) CashTransaction::query()
+                ->whereDate('transaction_date', today())
+                ->selectRaw("
+                    COALESCE(
+                        SUM(
+                            CASE
+                                WHEN direction = 'income'
+                                THEN amount
+                                ELSE -amount
+                            END
+                        ),
+                        0
+                    ) AS balance
+                ")
+                ->value('balance'),
+        ];
+
+        $categories = CashTransaction::query()
+            ->select('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
+
+        return view('cash-transactions.index', compact(
+            'transactions',
+            'statistics',
+            'categories',
+            'search',
+            'direction',
+            'category',
+            'dateFrom',
+            'dateTo'
+        ));
+    }
+
+    public function create(): View
+    {
+        return view('cash-transactions.create');
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'transaction_date' => [
+                'required',
+                'date',
+                'before_or_equal:today',
+            ],
+            'direction' => [
+                'required',
+                Rule::in([
+                    'income',
+                    'expense',
+                ]),
+            ],
+            'category' => [
+                'required',
+                'string',
+                'max:150',
+            ],
+            'amount' => [
+                'required',
+                'numeric',
+                'min:1',
+            ],
+            'payment_method' => [
+                'required',
+                Rule::in([
+                    'cash',
+                    'transfer',
+                    'other',
+                ]),
+            ],
+            'description' => [
+                'required',
+                'string',
+                'max:2000',
+            ],
+        ], [
+            'transaction_date.required' => 'Tanggal transaksi wajib diisi.',
+            'transaction_date.before_or_equal' => 'Tanggal transaksi tidak boleh melebihi hari ini.',
+            'direction.required' => 'Jenis transaksi wajib dipilih.',
+            'category.required' => 'Kategori transaksi wajib diisi.',
+            'amount.required' => 'Nominal transaksi wajib diisi.',
+            'amount.numeric' => 'Nominal transaksi harus berupa angka.',
+            'amount.min' => 'Nominal transaksi minimal Rp1.',
+            'payment_method.required' => 'Metode pembayaran wajib dipilih.',
+            'description.required' => 'Keterangan transaksi wajib diisi.',
+        ]);
+
+        CashTransaction::create([
+            ...$data,
+            'source_type' => null,
+            'source_id' => null,
+            'user_id' => auth()->id(),
+        ]);
+
+        return redirect()
+            ->route('cash-transactions.index')
+            ->with(
+                'success',
+                'Transaksi kas berhasil ditambahkan.'
+            );
+    }
+}
+
+===== FILE: app/Http/Controllers/ReportController.php =====
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\CashTransaction;
+use App\Models\InstallmentPayment;
+use App\Models\Loan;
+use App\Models\Member;
+use App\Models\SavingTransaction;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+class ReportController extends Controller
+{
+    private const REPORT_TYPES = [
+        'members' => 'Laporan Anggota',
+        'savings' => 'Laporan Simpanan',
+        'loans' => 'Laporan Pinjaman',
+        'installments' => 'Laporan Pembayaran Angsuran',
+        'cash' => 'Laporan Kas Koperasi',
+    ];
+
+    public function index(Request $request): View
+    {
+        return view(
+            'reports.index',
+            $this->buildReportData($request, true)
+        );
+    }
+
+    public function print(Request $request): View
+    {
+        return view(
+            'reports.print',
+            $this->buildReportData($request, false)
+        );
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $reportData = $this->buildReportData($request, false);
+        $reportType = $reportData['reportType'];
+        $rows = $reportData['rows'];
+
+        $fileName = sprintf(
+            'laporan-%s-%s.csv',
+            $reportType,
+            now()->format('Y-m-d-His')
+        );
+
+        return response()->streamDownload(
+            function () use ($reportType, $rows): void {
+                $handle = fopen('php://output', 'w');
+
+                /*
+                 * UTF-8 BOM agar karakter Indonesia terbaca
+                 * dengan baik ketika dibuka di Microsoft Excel.
+                 */
+                fwrite($handle, "\xEF\xBB\xBF");
+
+                fputcsv(
+                    $handle,
+                    $this->csvHeaders($reportType),
+                    ';'
+                );
+
+                foreach ($rows as $row) {
+                    fputcsv(
+                        $handle,
+                        $this->csvRow($reportType, $row),
+                        ';'
+                    );
+                }
+
+                fclose($handle);
+            },
+            $fileName,
+            [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+            ]
+        );
+    }
+
+    private function buildReportData(
+        Request $request,
+        bool $paginate
+    ): array {
+        $validated = $request->validate([
+            'report_type' => [
+                'nullable',
+                'in:members,savings,loans,installments,cash',
+            ],
+            'date_from' => [
+                'nullable',
+                'date',
+            ],
+            'date_to' => [
+                'nullable',
+                'date',
+                'after_or_equal:date_from',
+            ],
+            'search' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+            'status' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+        ], [
+            'date_to.after_or_equal' => 'Tanggal selesai tidak boleh lebih kecil dari tanggal mulai.',
+        ]);
+
+        $reportType = $validated['report_type'] ?? 'cash';
+
+        $dateFrom = $validated['date_from']
+            ?? now()->startOfMonth()->format('Y-m-d');
+
+        $dateTo = $validated['date_to']
+            ?? now()->format('Y-m-d');
+
+        $search = trim(
+            (string) ($validated['search'] ?? '')
+        );
+
+        $status = $validated['status'] ?? null;
+
+        $result = match ($reportType) {
+            'members' => $this->memberReport(
+                $dateFrom,
+                $dateTo,
+                $search,
+                $status,
+                $paginate
+            ),
+
+            'savings' => $this->savingReport(
+                $dateFrom,
+                $dateTo,
+                $search,
+                $status,
+                $paginate
+            ),
+
+            'loans' => $this->loanReport(
+                $dateFrom,
+                $dateTo,
+                $search,
+                $status,
+                $paginate
+            ),
+
+            'installments' => $this->installmentReport(
+                $dateFrom,
+                $dateTo,
+                $search,
+                $status,
+                $paginate
+            ),
+
+            default => $this->cashReport(
+                $dateFrom,
+                $dateTo,
+                $search,
+                $status,
+                $paginate
+            ),
+        };
+
+        return [
+            ...$result,
+            'reportTypes' => self::REPORT_TYPES,
+            'reportType' => $reportType,
+            'reportTitle' => self::REPORT_TYPES[$reportType],
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'search' => $search,
+            'status' => $status,
+        ];
+    }
+
+    private function memberReport(
+        string $dateFrom,
+        string $dateTo,
+        string $search,
+        ?string $status,
+        bool $paginate
+    ): array {
+        $query = Member::query()
+            ->when($search, function (Builder $query) use ($search): void {
+                $query->where(function (Builder $subQuery) use ($search): void {
+                    $subQuery
+                        ->where('member_number', 'like', "%{$search}%")
+                        ->orWhere('name', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when(
+                in_array($status, ['active', 'inactive'], true),
+                fn (Builder $query) => $query->where('status', $status)
+            )
+            ->whereDate('join_date', '>=', $dateFrom)
+            ->whereDate('join_date', '<=', $dateTo);
+
+        $summaryCards = [
+            [
+                'label' => 'Total Anggota',
+                'value' => (clone $query)->count(),
+                'format' => 'number',
+                'icon' => 'users',
+                'class' => 'bg-blue-100 text-blue-600',
+            ],
+            [
+                'label' => 'Anggota Aktif',
+                'value' => (clone $query)
+                    ->where('status', 'active')
+                    ->count(),
+                'format' => 'number',
+                'icon' => 'user-check',
+                'class' => 'bg-emerald-100 text-emerald-600',
+            ],
+            [
+                'label' => 'Tidak Aktif',
+                'value' => (clone $query)
+                    ->where('status', 'inactive')
+                    ->count(),
+                'format' => 'number',
+                'icon' => 'user-x',
+                'class' => 'bg-slate-100 text-slate-600',
+            ],
+        ];
+
+        $query
+            ->latest('join_date')
+            ->latest('id');
+
+        return [
+            'rows' => $this->finishQuery($query, $paginate),
+            'summaryCards' => $summaryCards,
+            'statusLabel' => 'Status Anggota',
+            'statusOptions' => [
+                'active' => 'Aktif',
+                'inactive' => 'Tidak Aktif',
+            ],
+        ];
+    }
+
+    private function savingReport(
+        string $dateFrom,
+        string $dateTo,
+        string $search,
+        ?string $status,
+        bool $paginate
+    ): array {
+        $query = SavingTransaction::query()
+            ->with([
+                'member:id,member_number,name',
+                'savingType:id,name,code',
+                'user:id,name',
+            ])
+            ->when($search, function (Builder $query) use ($search): void {
+                $query->where(function (Builder $subQuery) use ($search): void {
+                    $subQuery
+                        ->where('transaction_code', 'like', "%{$search}%")
+                        ->orWhereHas(
+                            'member',
+                            function (Builder $memberQuery) use ($search): void {
+                                $memberQuery
+                                    ->where('name', 'like', "%{$search}%")
+                                    ->orWhere(
+                                        'member_number',
+                                        'like',
+                                        "%{$search}%"
+                                    );
+                            }
+                        );
+                });
+            })
+            ->when(
+                in_array($status, ['deposit', 'withdrawal'], true),
+                fn (Builder $query) => $query->where(
+                    'transaction_type',
+                    $status
+                )
+            )
+            ->whereDate('transaction_date', '>=', $dateFrom)
+            ->whereDate('transaction_date', '<=', $dateTo);
+
+        $totalDeposits = (float) (clone $query)
+            ->where('transaction_type', 'deposit')
+            ->sum('amount');
+
+        $totalWithdrawals = (float) (clone $query)
+            ->where('transaction_type', 'withdrawal')
+            ->sum('amount');
+
+        $summaryCards = [
+            [
+                'label' => 'Total Setoran',
+                'value' => $totalDeposits,
+                'format' => 'currency',
+                'icon' => 'arrow-down-to-line',
+                'class' => 'bg-emerald-100 text-emerald-600',
+            ],
+            [
+                'label' => 'Total Penarikan',
+                'value' => $totalWithdrawals,
+                'format' => 'currency',
+                'icon' => 'arrow-up-from-line',
+                'class' => 'bg-red-100 text-red-600',
+            ],
+            [
+                'label' => 'Saldo Simpanan',
+                'value' => $totalDeposits - $totalWithdrawals,
+                'format' => 'currency',
+                'icon' => 'wallet-cards',
+                'class' => 'bg-blue-100 text-blue-600',
+            ],
+            [
+                'label' => 'Jumlah Transaksi',
+                'value' => (clone $query)->count(),
+                'format' => 'number',
+                'icon' => 'receipt-text',
+                'class' => 'bg-violet-100 text-violet-600',
+            ],
+        ];
+
+        $query
+            ->latest('transaction_date')
+            ->latest('id');
+
+        return [
+            'rows' => $this->finishQuery($query, $paginate),
+            'summaryCards' => $summaryCards,
+            'statusLabel' => 'Jenis Transaksi',
+            'statusOptions' => [
+                'deposit' => 'Setoran',
+                'withdrawal' => 'Penarikan',
+            ],
+        ];
+    }
+
+    private function loanReport(
+        string $dateFrom,
+        string $dateTo,
+        string $search,
+        ?string $status,
+        bool $paginate
+    ): array {
+        $validStatuses = [
+            'pending',
+            'active',
+            'rejected',
+            'paid',
+            'cancelled',
+        ];
+
+        $query = Loan::query()
+            ->with([
+                'member:id,member_number,name',
+                'creator:id,name',
+                'approver:id,name',
+            ])
+            ->when($search, function (Builder $query) use ($search): void {
+                $query->where(function (Builder $subQuery) use ($search): void {
+                    $subQuery
+                        ->where('loan_number', 'like', "%{$search}%")
+                        ->orWhereHas(
+                            'member',
+                            function (Builder $memberQuery) use ($search): void {
+                                $memberQuery
+                                    ->where('name', 'like', "%{$search}%")
+                                    ->orWhere(
+                                        'member_number',
+                                        'like',
+                                        "%{$search}%"
+                                    );
+                            }
+                        );
+                });
+            })
+            ->when(
+                in_array($status, $validStatuses, true),
+                fn (Builder $query) => $query->where('status', $status)
+            )
+            ->whereDate('application_date', '>=', $dateFrom)
+            ->whereDate('application_date', '<=', $dateTo);
+
+        $summaryCards = [
+            [
+                'label' => 'Pokok Pinjaman',
+                'value' => (float) (clone $query)
+                    ->sum('principal_amount'),
+                'format' => 'currency',
+                'icon' => 'hand-coins',
+                'class' => 'bg-blue-100 text-blue-600',
+            ],
+            [
+                'label' => 'Total Tagihan',
+                'value' => (float) (clone $query)
+                    ->sum('total_amount'),
+                'format' => 'currency',
+                'icon' => 'landmark',
+                'class' => 'bg-violet-100 text-violet-600',
+            ],
+            [
+                'label' => 'Pinjaman Aktif',
+                'value' => (clone $query)
+                    ->where('status', 'active')
+                    ->count(),
+                'format' => 'number',
+                'icon' => 'clock-3',
+                'class' => 'bg-amber-100 text-amber-600',
+            ],
+            [
+                'label' => 'Pinjaman Lunas',
+                'value' => (clone $query)
+                    ->where('status', 'paid')
+                    ->count(),
+                'format' => 'number',
+                'icon' => 'badge-check',
+                'class' => 'bg-emerald-100 text-emerald-600',
+            ],
+        ];
+
+        $query
+            ->latest('application_date')
+            ->latest('id');
+
+        return [
+            'rows' => $this->finishQuery($query, $paginate),
+            'summaryCards' => $summaryCards,
+            'statusLabel' => 'Status Pinjaman',
+            'statusOptions' => [
+                'pending' => 'Menunggu Persetujuan',
+                'active' => 'Aktif',
+                'paid' => 'Lunas',
+                'rejected' => 'Ditolak',
+                'cancelled' => 'Dibatalkan',
+            ],
+        ];
+    }
+
+    private function installmentReport(
+        string $dateFrom,
+        string $dateTo,
+        string $search,
+        ?string $status,
+        bool $paginate
+    ): array {
+        $query = InstallmentPayment::query()
+            ->with([
+                'installment:id,loan_id,installment_number,total_amount',
+                'installment.loan:id,loan_number,member_id',
+                'installment.loan.member:id,member_number,name',
+                'user:id,name',
+            ])
+            ->when($search, function (Builder $query) use ($search): void {
+                $query->where(function (Builder $subQuery) use ($search): void {
+                    $subQuery
+                        ->where('payment_code', 'like', "%{$search}%")
+                        ->orWhere('reference_number', 'like', "%{$search}%")
+                        ->orWhereHas(
+                            'installment.loan',
+                            function (Builder $loanQuery) use ($search): void {
+                                $loanQuery
+                                    ->where('loan_number', 'like', "%{$search}%")
+                                    ->orWhereHas(
+                                        'member',
+                                        function (Builder $memberQuery) use ($search): void {
+                                            $memberQuery
+                                                ->where('name', 'like', "%{$search}%")
+                                                ->orWhere(
+                                                    'member_number',
+                                                    'like',
+                                                    "%{$search}%"
+                                                );
+                                        }
+                                    );
+                            }
+                        );
+                });
+            })
+            ->when(
+                in_array($status, ['cash', 'transfer', 'other'], true),
+                fn (Builder $query) => $query->where(
+                    'payment_method',
+                    $status
+                )
+            )
+            ->whereDate('payment_date', '>=', $dateFrom)
+            ->whereDate('payment_date', '<=', $dateTo);
+
+        $summaryCards = [
+            [
+                'label' => 'Total Pembayaran',
+                'value' => (float) (clone $query)->sum('amount'),
+                'format' => 'currency',
+                'icon' => 'circle-dollar-sign',
+                'class' => 'bg-emerald-100 text-emerald-600',
+            ],
+            [
+                'label' => 'Pembayaran Tunai',
+                'value' => (float) (clone $query)
+                    ->where('payment_method', 'cash')
+                    ->sum('amount'),
+                'format' => 'currency',
+                'icon' => 'banknote',
+                'class' => 'bg-blue-100 text-blue-600',
+            ],
+            [
+                'label' => 'Pembayaran Transfer',
+                'value' => (float) (clone $query)
+                    ->where('payment_method', 'transfer')
+                    ->sum('amount'),
+                'format' => 'currency',
+                'icon' => 'building-2',
+                'class' => 'bg-violet-100 text-violet-600',
+            ],
+            [
+                'label' => 'Jumlah Transaksi',
+                'value' => (clone $query)->count(),
+                'format' => 'number',
+                'icon' => 'receipt-text',
+                'class' => 'bg-amber-100 text-amber-600',
+            ],
+        ];
+
+        $query
+            ->latest('payment_date')
+            ->latest('id');
+
+        return [
+            'rows' => $this->finishQuery($query, $paginate),
+            'summaryCards' => $summaryCards,
+            'statusLabel' => 'Metode Pembayaran',
+            'statusOptions' => [
+                'cash' => 'Tunai',
+                'transfer' => 'Transfer',
+                'other' => 'Lainnya',
+            ],
+        ];
+    }
+
+    private function cashReport(
+        string $dateFrom,
+        string $dateTo,
+        string $search,
+        ?string $status,
+        bool $paginate
+    ): array {
+        $query = CashTransaction::query()
+            ->with('user:id,name')
+            ->when($search, function (Builder $query) use ($search): void {
+                $query->where(function (Builder $subQuery) use ($search): void {
+                    $subQuery
+                        ->where('transaction_code', 'like', "%{$search}%")
+                        ->orWhere('category', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%");
+                });
+            })
+            ->when(
+                in_array($status, ['income', 'expense'], true),
+                fn (Builder $query) => $query->where(
+                    'direction',
+                    $status
+                )
+            )
+            ->whereDate('transaction_date', '>=', $dateFrom)
+            ->whereDate('transaction_date', '<=', $dateTo);
+
+        $totalIncome = (float) (clone $query)
+            ->where('direction', 'income')
+            ->sum('amount');
+
+        $totalExpense = (float) (clone $query)
+            ->where('direction', 'expense')
+            ->sum('amount');
+
+        $summaryCards = [
+            [
+                'label' => 'Kas Masuk',
+                'value' => $totalIncome,
+                'format' => 'currency',
+                'icon' => 'arrow-down-to-line',
+                'class' => 'bg-emerald-100 text-emerald-600',
+            ],
+            [
+                'label' => 'Kas Keluar',
+                'value' => $totalExpense,
+                'format' => 'currency',
+                'icon' => 'arrow-up-from-line',
+                'class' => 'bg-red-100 text-red-600',
+            ],
+            [
+                'label' => 'Perubahan Saldo',
+                'value' => $totalIncome - $totalExpense,
+                'format' => 'currency',
+                'icon' => 'wallet',
+                'class' => 'bg-blue-100 text-blue-600',
+            ],
+            [
+                'label' => 'Jumlah Transaksi',
+                'value' => (clone $query)->count(),
+                'format' => 'number',
+                'icon' => 'receipt-text',
+                'class' => 'bg-violet-100 text-violet-600',
+            ],
+        ];
+
+        $query
+            ->latest('transaction_date')
+            ->latest('id');
+
+        return [
+            'rows' => $this->finishQuery($query, $paginate),
+            'summaryCards' => $summaryCards,
+            'statusLabel' => 'Jenis Transaksi',
+            'statusOptions' => [
+                'income' => 'Kas Masuk',
+                'expense' => 'Kas Keluar',
+            ],
+        ];
+    }
+
+    private function finishQuery(
+        Builder $query,
+        bool $paginate
+    ): mixed {
+        if ($paginate) {
+            return $query
+                ->paginate(20)
+                ->withQueryString();
+        }
+
+        return $query->get();
+    }
+
+    private function csvHeaders(string $reportType): array
+    {
+        return match ($reportType) {
+            'members' => [
+                'Nomor Anggota',
+                'Nama',
+                'Jenis Kelamin',
+                'Telepon',
+                'Email',
+                'Tanggal Bergabung',
+                'Status',
+            ],
+
+            'savings' => [
+                'Kode Transaksi',
+                'Tanggal',
+                'Nomor Anggota',
+                'Nama Anggota',
+                'Jenis Simpanan',
+                'Jenis Transaksi',
+                'Nominal',
+                'Saldo Akhir',
+                'Petugas',
+            ],
+
+            'loans' => [
+                'Nomor Pinjaman',
+                'Tanggal Pengajuan',
+                'Nomor Anggota',
+                'Nama Anggota',
+                'Pokok Pinjaman',
+                'Bunga Per Bulan',
+                'Tenor',
+                'Total Tagihan',
+                'Status',
+            ],
+
+            'installments' => [
+                'Kode Pembayaran',
+                'Tanggal',
+                'Nomor Anggota',
+                'Nama Anggota',
+                'Nomor Pinjaman',
+                'Angsuran Ke',
+                'Metode',
+                'Nominal',
+                'Sisa Setelah Pembayaran',
+                'Petugas',
+            ],
+
+            default => [
+                'Kode Transaksi',
+                'Tanggal',
+                'Jenis',
+                'Kategori',
+                'Keterangan',
+                'Metode',
+                'Nominal',
+                'Petugas',
+            ],
+        };
+    }
+
+    private function csvRow(
+        string $reportType,
+        mixed $row
+    ): array {
+        return match ($reportType) {
+            'members' => [
+                $row->member_number,
+                $row->name,
+                $row->gender_label,
+                $row->phone,
+                $row->email,
+                $row->join_date->format('Y-m-d'),
+                $row->status_label,
+            ],
+
+            'savings' => [
+                $row->transaction_code,
+                $row->transaction_date->format('Y-m-d'),
+                $row->member->member_number,
+                $row->member->name,
+                $row->savingType->name,
+                $row->transaction_type_label,
+                (float) $row->amount,
+                (float) $row->balance_after,
+                $row->user?->name ?? 'Sistem',
+            ],
+
+            'loans' => [
+                $row->loan_number,
+                $row->application_date->format('Y-m-d'),
+                $row->member->member_number,
+                $row->member->name,
+                (float) $row->principal_amount,
+                (float) $row->interest_rate,
+                $row->tenor_months,
+                (float) $row->total_amount,
+                $row->status_label,
+            ],
+
+            'installments' => [
+                $row->payment_code,
+                $row->payment_date->format('Y-m-d'),
+                $row->installment->loan->member->member_number,
+                $row->installment->loan->member->name,
+                $row->installment->loan->loan_number,
+                $row->installment->installment_number,
+                $row->payment_method_label,
+                (float) $row->amount,
+                (float) $row->remaining_after,
+                $row->user?->name ?? 'Sistem',
+            ],
+
+            default => [
+                $row->transaction_code,
+                $row->transaction_date->format('Y-m-d'),
+                $row->direction_label,
+                $row->category,
+                $row->description,
+                $row->payment_method_label,
+                (float) $row->amount,
+                $row->user?->name ?? 'Sistem',
+            ],
+        };
+    }
+}
+
+===== FILE: app/Http/Controllers/ShuReportController.php =====
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\CashTransaction;
+use App\Models\ShuPayment;
+use App\Models\ShuPeriod;
+use Illuminate\Support\Collection;
+use Illuminate\View\View;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+class ShuReportController extends Controller
+{
+    public function show(
+        ShuPeriod $shuPeriod
+    ): View {
+        $report = $this->buildReport(
+            $shuPeriod
+        );
+
+        return view(
+            'shu-reports.show',
+            [
+                ...$report,
+                'printMode' => false,
+            ]
+        );
+    }
+
+    public function print(
+        ShuPeriod $shuPeriod
+    ): View {
+        $report = $this->buildReport(
+            $shuPeriod
+        );
+
+        return view(
+            'shu-reports.show',
+            [
+                ...$report,
+                'printMode' => true,
+            ]
+        );
+    }
+
+    public function export(
+        ShuPeriod $shuPeriod
+    ): StreamedResponse {
+        $report = $this->buildReport(
+            $shuPeriod
+        );
+
+        $period = $report['shuPeriod'];
+        $allocations = $report['allocations'];
+        $summary = $report['summary'];
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $sheet->setTitle(
+            'SHU ' . $period->year
+        );
+
+        $sheet->mergeCells('A1:N1');
+        $sheet->setCellValue(
+            'A1',
+            'LAPORAN PEMBAGIAN SISA HASIL USAHA'
+        );
+
+        $sheet->mergeCells('A2:N2');
+        $sheet->setCellValue(
+            'A2',
+            sprintf(
+                'PERIODE TAHUN %d',
+                $period->year
+            )
+        );
+
+        $sheet->setCellValue(
+            'A4',
+            'Ketetapan SHU Anggota'
+        );
+
+        $sheet->setCellValue(
+            'B4',
+            $summary['declared_member_shu']
+        );
+
+        $sheet->setCellValue(
+            'D4',
+            'Total Alokasi'
+        );
+
+        $sheet->setCellValue(
+            'E4',
+            $summary['allocated_total']
+        );
+
+        $sheet->setCellValue(
+            'G4',
+            'Selisih Alokasi'
+        );
+
+        $sheet->setCellValue(
+            'H4',
+            $summary['difference']
+        );
+
+        $sheet->setCellValue(
+            'J4',
+            'Status Periode'
+        );
+
+        $sheet->setCellValue(
+            'K4',
+            $period->status_label
+        );
+
+        $sheet->setCellValue(
+            'A5',
+            'Total JASUS'
+        );
+
+        $sheet->setCellValue(
+            'B5',
+            $summary['business_service']
+        );
+
+        $sheet->setCellValue(
+            'D5',
+            'Total JASIM'
+        );
+
+        $sheet->setCellValue(
+            'E5',
+            $summary['saving_service']
+        );
+
+        $sheet->setCellValue(
+            'G5',
+            'Sudah Dibayar'
+        );
+
+        $sheet->setCellValue(
+            'H5',
+            $summary['paid_total']
+        );
+
+        $sheet->setCellValue(
+            'J5',
+            'Sisa Pembayaran'
+        );
+
+        $sheet->setCellValue(
+            'K5',
+            $summary['remaining_total']
+        );
+
+        $sheet->setCellValue(
+            'A6',
+            'Jumlah Anggota'
+        );
+
+        $sheet->setCellValue(
+            'B6',
+            $summary['member_count']
+        );
+
+        $sheet->setCellValue(
+            'D6',
+            'Anggota Lunas'
+        );
+
+        $sheet->setCellValue(
+            'E6',
+            $summary['paid_count']
+        );
+
+        $sheet->setCellValue(
+            'G6',
+            'Belum Lunas'
+        );
+
+        $sheet->setCellValue(
+            'H6',
+            $summary['unpaid_count']
+        );
+
+        $sheet->setCellValue(
+            'J6',
+            'Kas Keluar SHU'
+        );
+
+        $sheet->setCellValue(
+            'K6',
+            $summary['cash_expense_total']
+        );
+
+        $headers = [
+            'No.',
+            'Nomor Anggota',
+            'Nama Anggota',
+            'Saldo Piutang',
+            'Bagi Hasil',
+            'Simpanan Pokok',
+            'Simpanan Wajib',
+            'Jumlah Simpanan',
+            'JASUS',
+            'JASIM',
+            'Total SHU',
+            'Sudah Dibayar',
+            'Sisa',
+            'Status',
+        ];
+
+        $headerRow = 8;
+
+        $sheet->fromArray(
+            $headers,
+            null,
+            "A{$headerRow}"
+        );
+
+        $dataRow = $headerRow + 1;
+
+        foreach (
+            $allocations as $index => $allocation
+        ) {
+            $remaining = max(
+                (float) $allocation->total_shu
+                - (float) $allocation->paid_amount,
+                0
+            );
+
+            $status = match (
+                $allocation->payment_status
+            ) {
+                'paid' => 'Lunas',
+                'partial' => 'Sebagian',
+                default => 'Belum Dibayar',
+            };
+
+            $sheet->fromArray(
+                [
+                    $index + 1,
+                    $allocation->member
+                        ?->member_number,
+                    $allocation->member
+                        ?->name,
+                    (float) $allocation
+                        ->receivable_balance,
+                    (float) $allocation
+                        ->profit_share_base,
+                    (float) $allocation
+                        ->principal_saving,
+                    (float) $allocation
+                        ->mandatory_saving,
+                    (float) $allocation
+                        ->saving_balance,
+                    (float) $allocation
+                        ->business_service_amount,
+                    (float) $allocation
+                        ->saving_service_amount,
+                    (float) $allocation
+                        ->total_shu,
+                    (float) $allocation
+                        ->paid_amount,
+                    $remaining,
+                    $status,
+                ],
+                null,
+                "A{$dataRow}"
+            );
+
+            $dataRow++;
+        }
+
+        $totalRow = $dataRow;
+
+        $sheet->mergeCells(
+            "A{$totalRow}:C{$totalRow}"
+        );
+
+        $sheet->setCellValue(
+            "A{$totalRow}",
+            'TOTAL'
+        );
+
+        $totals = [
+            'D' => $summary['receivable_balance'],
+            'E' => $summary['profit_share_base'],
+            'F' => $summary['principal_saving'],
+            'G' => $summary['mandatory_saving'],
+            'H' => $summary['saving_balance'],
+            'I' => $summary['business_service'],
+            'J' => $summary['saving_service'],
+            'K' => $summary['allocated_total'],
+            'L' => $summary['paid_total'],
+            'M' => $summary['remaining_total'],
+        ];
+
+        foreach (
+            $totals as $column => $value
+        ) {
+            $sheet->setCellValue(
+                "{$column}{$totalRow}",
+                $value
+            );
+        }
+
+        $sheet->setCellValue(
+            "N{$totalRow}",
+            ''
+        );
+
+        $sheet->getStyle(
+            'A1:N1'
+        )->getFont()
+            ->setBold(true)
+            ->setSize(16);
+
+        $sheet->getStyle(
+            'A2:N2'
+        )->getFont()
+            ->setBold(true)
+            ->setSize(12);
+
+        $sheet->getStyle(
+            'A1:N2'
+        )->getAlignment()
+            ->setHorizontal(
+                Alignment::HORIZONTAL_CENTER
+            );
+
+        $sheet->getStyle(
+            "A{$headerRow}:N{$headerRow}"
+        )->getFont()
+            ->setBold(true)
+            ->getColor()
+            ->setARGB('FFFFFFFF');
+
+        $sheet->getStyle(
+            "A{$headerRow}:N{$headerRow}"
+        )->getFill()
+            ->setFillType(
+                Fill::FILL_SOLID
+            )
+            ->getStartColor()
+            ->setARGB('FF047857');
+
+        $sheet->getStyle(
+            "A{$headerRow}:N{$headerRow}"
+        )->getAlignment()
+            ->setHorizontal(
+                Alignment::HORIZONTAL_CENTER
+            )
+            ->setVertical(
+                Alignment::VERTICAL_CENTER
+            );
+
+        $sheet->getStyle(
+            "A{$totalRow}:N{$totalRow}"
+        )->getFont()
+            ->setBold(true);
+
+        $sheet->getStyle(
+            "A{$totalRow}:N{$totalRow}"
+        )->getFill()
+            ->setFillType(
+                Fill::FILL_SOLID
+            )
+            ->getStartColor()
+            ->setARGB('FFD1FAE5');
+
+        $sheet->getStyle(
+            "A{$headerRow}:N{$totalRow}"
+        )->getBorders()
+            ->getAllBorders()
+            ->setBorderStyle(
+                Border::BORDER_THIN
+            );
+
+        $sheet->getStyle(
+            "D4:H6"
+        )->getNumberFormat()
+            ->setFormatCode(
+                '#,##0'
+            );
+
+        $sheet->getStyle(
+            "K4:K6"
+        )->getNumberFormat()
+            ->setFormatCode(
+                '#,##0'
+            );
+
+        if ($totalRow > $headerRow + 1) {
+            $sheet->getStyle(
+                'D9:M' . $totalRow
+            )->getNumberFormat()
+                ->setFormatCode(
+                    '#,##0'
+                );
+        }
+
+        $sheet->getColumnDimension('A')
+            ->setWidth(7);
+
+        $sheet->getColumnDimension('B')
+            ->setWidth(18);
+
+        $sheet->getColumnDimension('C')
+            ->setWidth(30);
+
+        foreach (
+            range('D', 'M')
+            as $column
+        ) {
+            $sheet->getColumnDimension(
+                $column
+            )->setWidth(18);
+        }
+
+        $sheet->getColumnDimension('N')
+            ->setWidth(18);
+
+        $sheet->freezePane(
+            'A9'
+        );
+
+        $sheet->setAutoFilter(
+            "A{$headerRow}:N"
+            . max(
+                $totalRow - 1,
+                $headerRow
+            )
+        );
+
+        $filename = sprintf(
+            'laporan-shu-%d.xlsx',
+            $period->year
+        );
+
+        return response()->streamDownload(
+            function () use (
+                $spreadsheet
+            ): void {
+                $writer = new Xlsx(
+                    $spreadsheet
+                );
+
+                $writer->save(
+                    'php://output'
+                );
+
+                $spreadsheet
+                    ->disconnectWorksheets();
+            },
+            $filename,
+            [
+                'Content-Type' =>
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]
+        );
+    }
+
+    private function buildReport(
+        ShuPeriod $shuPeriod
+    ): array {
+        $shuPeriod->load([
+            'approver:id,name',
+        ]);
+
+        $allocations = $shuPeriod
+            ->allocations()
+            ->with([
+                'member:id,member_number,name',
+            ])
+            ->orderBy('source_number')
+            ->orderBy('id')
+            ->get();
+
+        $paymentIds = ShuPayment::query()
+            ->whereHas(
+                'allocation',
+                fn ($query) =>
+                    $query->where(
+                        'shu_period_id',
+                        $shuPeriod->id
+                    )
+            )
+            ->pluck('id');
+
+        $cashExpenseTotal = $paymentIds
+            ->isEmpty()
+                ? 0
+                : (float) CashTransaction::query()
+                    ->where(
+                        'source_type',
+                        'shu_payment'
+                    )
+                    ->whereIn(
+                        'source_id',
+                        $paymentIds
+                    )
+                    ->sum('amount');
+
+        $allocatedTotal = (float)
+            $allocations->sum('total_shu');
+
+        $paidTotal = (float)
+            $allocations->sum('paid_amount');
+
+        $summary = [
+            'declared_total_shu' =>
+                (float) $shuPeriod
+                    ->declared_total_shu,
+
+            'declared_member_shu' =>
+                (float) $shuPeriod
+                    ->declared_member_shu,
+
+            'member_count' =>
+                $allocations->count(),
+
+            'business_service' =>
+                (float) $allocations
+                    ->sum(
+                        'business_service_amount'
+                    ),
+
+            'saving_service' =>
+                (float) $allocations
+                    ->sum(
+                        'saving_service_amount'
+                    ),
+
+            'receivable_balance' =>
+                (float) $allocations
+                    ->sum(
+                        'receivable_balance'
+                    ),
+
+            'profit_share_base' =>
+                (float) $allocations
+                    ->sum(
+                        'profit_share_base'
+                    ),
+
+            'principal_saving' =>
+                (float) $allocations
+                    ->sum(
+                        'principal_saving'
+                    ),
+
+            'mandatory_saving' =>
+                (float) $allocations
+                    ->sum(
+                        'mandatory_saving'
+                    ),
+
+            'saving_balance' =>
+                (float) $allocations
+                    ->sum(
+                        'saving_balance'
+                    ),
+
+            'allocated_total' =>
+                $allocatedTotal,
+
+            'paid_total' =>
+                $paidTotal,
+
+            'remaining_total' => max(
+                $allocatedTotal - $paidTotal,
+                0
+            ),
+
+            'difference' => round(
+                (float) $shuPeriod
+                    ->declared_member_shu
+                - $allocatedTotal,
+                2
+            ),
+
+            'paid_count' =>
+                $allocations
+                    ->where(
+                        'payment_status',
+                        'paid'
+                    )
+                    ->count(),
+
+            'partial_count' =>
+                $allocations
+                    ->where(
+                        'payment_status',
+                        'partial'
+                    )
+                    ->count(),
+
+            'unpaid_count' =>
+                $allocations
+                    ->where(
+                        'payment_status',
+                        '!=',
+                        'paid'
+                    )
+                    ->count(),
+
+            'cash_expense_total' =>
+                $cashExpenseTotal,
+
+            'cash_difference' => round(
+                $cashExpenseTotal
+                - $paidTotal,
+                2
+            ),
+
+            'payment_percentage' =>
+                $allocatedTotal > 0
+                    ? round(
+                        (
+                            $paidTotal
+                            / $allocatedTotal
+                        ) * 100,
+                        2
+                    )
+                    : 0,
+        ];
+
+        return compact(
+            'shuPeriod',
+            'allocations',
+            'summary'
+        );
+    }
+}
+
+===== REPORT SERVICES =====
+
+===== FILE: app/Services/Imports/CashImportReconciliationService.php =====
+<?php
+
+namespace App\Services\Imports;
+
+use App\Models\CashImportBatch;
+use App\Models\CashTransaction;
+use App\Models\LoanImportEntry;
+use App\Models\SavingTransaction;
+
+class CashImportReconciliationService
+{
+    public function build(
+        CashImportBatch $batch
+    ): array {
+        $batch->loadMissing(
+            'dataImportBatch'
+        );
+
+        $source = [
+            'financing_expense' => $this->sumRows(
+                $batch,
+                'financing_expense'
+            ),
+            'principal_refund' => $this->sumRows(
+                $batch,
+                'principal_refund'
+            ),
+            'mandatory_refund' => $this->sumRows(
+                $batch,
+                'mandatory_refund'
+            ),
+            'voluntary_withdrawal' => $this->sumRows(
+                $batch,
+                'voluntary_withdrawal'
+            ),
+            'transport_expense' => $this->sumRows(
+                $batch,
+                'transport_expense'
+            ),
+            'other_expense' => $this->sumRows(
+                $batch,
+                'other_expense'
+            ),
+            'installment_income' => $this->sumRows(
+                $batch,
+                'installment_income'
+            ),
+            'profit_share_income' => $this->sumRows(
+                $batch,
+                'profit_share_income'
+            ),
+            'administration_income' => $this->sumRows(
+                $batch,
+                'administration_income'
+            ),
+            'principal_deposit' => $this->sumRows(
+                $batch,
+                'principal_deposit'
+            ),
+            'mandatory_deposit' => $this->sumRows(
+                $batch,
+                'mandatory_deposit'
+            ),
+            'voluntary_deposit' => $this->sumRows(
+                $batch,
+                'voluntary_deposit'
+            ),
+        ];
+
+        $dataBatchId = $batch->data_import_batch_id;
+
+        $savingIds = SavingTransaction::query()
+            ->where('import_batch_id', $dataBatchId)
+            ->pluck('id');
+
+        $loanEntryIds = LoanImportEntry::query()
+            ->where('import_batch_id', $dataBatchId)
+            ->pluck('id');
+
+        $rowIds = $batch->rows()
+            ->pluck('id');
+
+        $actual = [
+            'financing_expense' => $this->sumCash(
+                'legacy_financing_disbursement',
+                $loanEntryIds
+            ),
+
+            'principal_refund' => $this->sumCash(
+                'cash_import_principal_refund',
+                $rowIds
+            ),
+
+            'mandatory_refund' => $this->sumCash(
+                'cash_import_mandatory_refund',
+                $rowIds
+            ),
+
+            'voluntary_withdrawal' =>
+                $this->sumSavingCash(
+                    $savingIds,
+                    'voluntary_withdrawal'
+                ),
+
+            'transport_expense' => $this->sumCash(
+                'cash_import_transport',
+                $rowIds
+            ),
+
+            'other_expense' => $this->sumCash(
+                'cash_import_other_expense',
+                $rowIds
+            ),
+
+            'installment_income' => $this->sumCash(
+                'legacy_principal_payment',
+                $loanEntryIds
+            ),
+
+            'profit_share_income' => $this->sumCash(
+                'legacy_profit_share',
+                $loanEntryIds
+            ),
+
+            'administration_income' => $this->sumCash(
+                'legacy_administration',
+                $loanEntryIds
+            ),
+
+            'principal_deposit' =>
+                $this->sumSavingCash(
+                    $savingIds,
+                    'principal_deposit'
+                ),
+
+            'mandatory_deposit' =>
+                $this->sumSavingCash(
+                    $savingIds,
+                    'mandatory_deposit'
+                ),
+
+            'voluntary_deposit' =>
+                $this->sumSavingCash(
+                    $savingIds,
+                    'voluntary_deposit'
+                ),
+        ];
+
+        $labels = [
+            'financing_expense'
+                => 'Pencairan Pembiayaan',
+
+            'principal_refund'
+                => 'Pengembalian Simpanan Pokok',
+
+            'mandatory_refund'
+                => 'Pengembalian Simpanan Wajib',
+
+            'voluntary_withdrawal'
+                => 'Penarikan Simpanan Sukarela',
+
+            'transport_expense'
+                => 'Biaya Transportasi',
+
+            'other_expense'
+                => 'Biaya Operasional Lain',
+
+            'installment_income'
+                => 'Angsuran Pokok',
+
+            'profit_share_income'
+                => 'Bagi Hasil',
+
+            'administration_income'
+                => 'Administrasi',
+
+            'principal_deposit'
+                => 'Setoran Simpanan Pokok',
+
+            'mandatory_deposit'
+                => 'Setoran Simpanan Wajib',
+
+            'voluntary_deposit'
+                => 'Setoran Simpanan Sukarela',
+        ];
+
+        $expenseKeys = [
+            'financing_expense',
+            'principal_refund',
+            'mandatory_refund',
+            'voluntary_withdrawal',
+            'transport_expense',
+            'other_expense',
+        ];
+
+        $metrics = [];
+
+        foreach ($labels as $key => $label) {
+            $difference = round(
+                $actual[$key] - $source[$key],
+                2
+            );
+
+            $metrics[] = [
+                'key' => $key,
+                'label' => $label,
+                'direction' => in_array(
+                    $key,
+                    $expenseKeys,
+                    true
+                )
+                    ? 'expense'
+                    : 'income',
+
+                'source' => $source[$key],
+                'actual' => $actual[$key],
+                'difference' => $difference,
+                'matched' => abs($difference) < 0.01,
+            ];
+        }
+
+        $sourceIncome = collect($metrics)
+            ->where('direction', 'income')
+            ->sum('source');
+
+        $actualIncome = collect($metrics)
+            ->where('direction', 'income')
+            ->sum('actual');
+
+        $sourceExpense = collect($metrics)
+            ->where('direction', 'expense')
+            ->sum('source');
+
+        $actualExpense = collect($metrics)
+            ->where('direction', 'expense')
+            ->sum('actual');
+
+        return [
+            'metrics' => $metrics,
+
+            'summary' => [
+                'metric_count' => count($metrics),
+
+                'matched_count' => collect($metrics)
+                    ->where('matched', true)
+                    ->count(),
+
+                'difference_count' => collect($metrics)
+                    ->where('matched', false)
+                    ->count(),
+
+                'source_income' => $sourceIncome,
+                'actual_income' => $actualIncome,
+
+                'source_expense' => $sourceExpense,
+                'actual_expense' => $actualExpense,
+
+                'source_net' => $sourceIncome
+                    - $sourceExpense,
+
+                'actual_net' => $actualIncome
+                    - $actualExpense,
+            ],
+        ];
+    }
+
+    private function sumRows(
+        CashImportBatch $batch,
+        string $column
+    ): float {
+        return round(
+            (float) $batch->rows()
+                ->sum($column),
+            2
+        );
+    }
+
+    private function sumCash(
+        string $sourceType,
+        mixed $sourceIds
+    ): float {
+        if ($sourceIds->isEmpty()) {
+            return 0;
+        }
+
+        return round(
+            (float) CashTransaction::query()
+                ->where(
+                    'source_type',
+                    $sourceType
+                )
+                ->whereIn(
+                    'source_id',
+                    $sourceIds
+                )
+                ->sum('amount'),
+            2
+        );
+    }
+
+    private function sumSavingCash(
+        mixed $savingIds,
+        string $component
+    ): float {
+        if ($savingIds->isEmpty()) {
+            return 0;
+        }
+
+        return round(
+            (float) CashTransaction::query()
+                ->join(
+                    'saving_transactions',
+                    function ($join): void {
+                        $join
+                            ->on(
+                                'saving_transactions.id',
+                                '=',
+                                'cash_transactions.source_id'
+                            )
+                            ->where(
+                                'cash_transactions.source_type',
+                                '=',
+                                'saving_transaction'
+                            );
+                    }
+                )
+                ->whereIn(
+                    'saving_transactions.id',
+                    $savingIds
+                )
+                ->where(
+                    'saving_transactions.import_component',
+                    $component
+                )
+                ->sum('cash_transactions.amount'),
+            2
+        );
+    }
+}
+
+===== FILE: app/Services/Imports/ImportReconciliationService.php =====
+<?php
+
+namespace App\Services\Imports;
+
+use App\Models\ImportBatch;
+use App\Models\ImportRow;
+use App\Models\InstallmentPayment;
+use App\Models\Loan;
+use App\Models\LoanInstallment;
+use App\Models\Member;
+use App\Models\SavingTransaction;
+use App\Models\SavingType;
+use DomainException;
+
+class ImportReconciliationService
+{
+    /**
+     * Membuat laporan rekonsiliasi antara data sumber Excel
+     * dengan data yang sudah tersimpan di aplikasi.
+     *
+     * @return array<string, mixed>
+     */
+    public function build(
+        ImportBatch $batch
+    ): array {
+        $batch->refresh();
+
+        if (!$batch->members_savings_imported_at) {
+            throw new DomainException(
+                'Data anggota dan simpanan belum diimpor.'
+            );
+        }
+
+        if (!$batch->financing_imported_at) {
+            throw new DomainException(
+                'Data pembiayaan dan angsuran belum diimpor.'
+            );
+        }
+
+        $sourceNumbers = $batch
+            ->mappings()
+            ->where('status', 'imported')
+            ->whereNotNull('member_id')
+            ->pluck('source_number');
+
+        if ($sourceNumbers->isEmpty()) {
+            throw new DomainException(
+                'Tidak ditemukan anggota hasil import untuk direkonsiliasi.'
+            );
+        }
+
+        $rows = ImportRow::query()
+            ->where('import_batch_id', $batch->id)
+            ->whereIn('source_number', $sourceNumbers)
+            ->when(
+                $batch->cutoff_date,
+                fn ($query) => $query->whereDate(
+                    'period_date',
+                    '<=',
+                    $batch->cutoff_date
+                )
+            )
+            ->orderBy('period_date')
+            ->orderBy('row_number')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            throw new DomainException(
+                'Baris sumber Excel tidak ditemukan.'
+            );
+        }
+
+        /*
+         * Karena data sudah diurutkan berdasarkan periode,
+         * last() akan mengambil saldo terakhir setiap anggota.
+         */
+        $latestRows = $rows
+            ->groupBy('source_number')
+            ->map(
+                fn ($memberRows) => $memberRows->last()
+            );
+
+        $sourceTotals = [
+            'principal_deposit' => $this->money(
+                (float) $rows->sum('principal_saving')
+            ),
+
+            'mandatory_deposit' => $this->money(
+                (float) $rows->sum('mandatory_saving')
+            ),
+
+            'mandatory_balance' => $this->money(
+                (float) $latestRows->sum('mandatory_balance')
+            ),
+
+            'voluntary_deposit' => $this->money(
+                (float) $rows->sum('voluntary_saving')
+            ),
+
+            'voluntary_withdrawal' => $this->money(
+                (float) $rows->sum('voluntary_withdrawal')
+            ),
+
+            'voluntary_balance' => $this->money(
+                (float) $latestRows->sum('voluntary_balance')
+            ),
+
+            'new_financing' => $this->money(
+                (float) $rows->sum('new_financing')
+            ),
+
+            'principal_payment' => $this->money(
+                (float) $rows->sum('principal_installment')
+            ),
+
+            'profit_share' => $this->money(
+                (float) $rows->sum('profit_share')
+            ),
+
+            'administration_fee' => $this->money(
+                (float) $rows->sum('administration_fee')
+            ),
+
+            'remaining_financing' => $this->money(
+                (float) $latestRows->sum('remaining_financing')
+            ),
+        ];
+
+        /*
+         * Total transaksi asli tanpa saldo awal dan penyesuaian.
+         */
+        $savingComponentTotals = SavingTransaction::query()
+            ->where('import_batch_id', $batch->id)
+            ->whereIn('import_component', [
+                'principal_deposit',
+                'mandatory_deposit',
+                'voluntary_deposit',
+                'voluntary_withdrawal',
+            ])
+            ->selectRaw(
+                'import_component, COALESCE(SUM(amount), 0) AS total'
+            )
+            ->groupBy('import_component')
+            ->pluck('total', 'import_component');
+
+        $savingTypeIds = SavingType::query()
+            ->whereIn('code', [
+                'POKOK',
+                'WAJIB',
+                'SUKARELA',
+            ])
+            ->pluck('id');
+
+        /*
+         * Ambil transaksi terakhir setiap anggota dan jenis simpanan
+         * untuk memperoleh saldo akhir pada tanggal cut-off.
+         */
+        $latestTransactionIds = SavingTransaction::query()
+            ->where('import_batch_id', $batch->id)
+            ->whereIn('saving_type_id', $savingTypeIds)
+            ->when(
+                $batch->cutoff_date,
+                fn ($query) => $query->whereDate(
+                    'transaction_date',
+                    '<=',
+                    $batch->cutoff_date
+                )
+            )
+            ->selectRaw('MAX(id) AS id')
+            ->groupBy([
+                'member_id',
+                'saving_type_id',
+            ])
+            ->pluck('id');
+
+        $actualSavingBalances = SavingTransaction::query()
+            ->join(
+                'saving_types',
+                'saving_types.id',
+                '=',
+                'saving_transactions.saving_type_id'
+            )
+            ->whereIn(
+                'saving_transactions.id',
+                $latestTransactionIds
+            )
+            ->selectRaw(
+                'saving_types.code AS saving_code'
+            )
+            ->selectRaw(
+                'COALESCE(SUM(saving_transactions.balance_after), 0) AS total'
+            )
+            ->groupBy('saving_types.code')
+            ->pluck('total', 'saving_code');
+
+        $loanTotals = Loan::query()
+            ->where('import_batch_id', $batch->id)
+            ->selectRaw('COUNT(*) AS loan_count')
+            ->selectRaw(
+                'COALESCE(SUM(disbursed_during_import), 0) AS new_financing'
+            )
+            ->selectRaw(
+                'COALESCE(SUM(outstanding_principal), 0) AS outstanding_principal'
+            )
+            ->selectRaw(
+                'COALESCE(SUM(profit_share_paid), 0) AS profit_share'
+            )
+            ->selectRaw(
+                'COALESCE(SUM(administration_paid), 0) AS administration_fee'
+            )
+            ->first();
+
+        $paymentTotals = InstallmentPayment::query()
+            ->where('import_batch_id', $batch->id)
+            ->selectRaw('COUNT(*) AS payment_count')
+            ->selectRaw(
+                'COALESCE(SUM(principal_amount), 0) AS principal_payment'
+            )
+            ->selectRaw(
+                'COALESCE(SUM(profit_share_amount), 0) AS profit_share'
+            )
+            ->selectRaw(
+                'COALESCE(SUM(administration_fee), 0) AS administration_fee'
+            )
+            ->first();
+
+        $sourceLoanCount = $rows
+            ->groupBy('source_number')
+            ->filter(function ($memberRows): bool {
+                return $memberRows->contains(
+                    function (ImportRow $row): bool {
+                        return (
+                            (float) $row->new_financing > 0
+                            || (float) $row->principal_installment > 0
+                            || (float) $row->profit_share > 0
+                            || (float) $row->administration_fee > 0
+                            || (float) $row->remaining_financing > 0
+                        );
+                    }
+                );
+            })
+            ->count();
+
+        /*
+         * Service import membuat jadwal angsuran apabila
+         * terdapat angsuran pokok atau pembayaran bagi hasil.
+         */
+        $sourceInstallmentCount = $rows
+            ->filter(function (ImportRow $row): bool {
+                return (
+                    (float) $row->principal_installment > 0
+                    || (float) $row->profit_share > 0
+                );
+            })
+            ->count();
+
+        $memberIds = $batch
+            ->mappings()
+            ->where('status', 'imported')
+            ->whereNotNull('member_id')
+            ->pluck('member_id')
+            ->unique();
+
+        $actualMemberCount = Member::query()
+            ->whereIn('id', $memberIds)
+            ->count();
+
+        $actualInstallmentCount = LoanInstallment::query()
+            ->where('import_batch_id', $batch->id)
+            ->count();
+
+        $sections = [
+            [
+                'title' => 'Data Anggota',
+                'description'
+                    => 'Perbandingan anggota yang diproses dari mapping dengan anggota yang tersedia di aplikasi.',
+
+                'metrics' => [
+                    $this->numberMetric(
+                        label: 'Jumlah Anggota',
+                        source: $sourceNumbers->count(),
+                        actual: $actualMemberCount
+                    ),
+                ],
+            ],
+
+            [
+                'title' => 'Simpanan Anggota',
+                'description'
+                    => 'Perbandingan setoran, penarikan, dan saldo akhir simpanan pada tanggal cut-off.',
+
+                'metrics' => [
+                    $this->moneyMetric(
+                        label: 'Setoran Simpanan Pokok',
+                        source: $sourceTotals[
+                            'principal_deposit'
+                        ],
+                        actual: (float) (
+                            $savingComponentTotals[
+                                'principal_deposit'
+                            ] ?? 0
+                        )
+                    ),
+
+                    $this->moneyMetric(
+                        label: 'Setoran Simpanan Wajib',
+                        source: $sourceTotals[
+                            'mandatory_deposit'
+                        ],
+                        actual: (float) (
+                            $savingComponentTotals[
+                                'mandatory_deposit'
+                            ] ?? 0
+                        )
+                    ),
+
+                    $this->moneyMetric(
+                        label: 'Saldo Simpanan Wajib',
+                        source: $sourceTotals[
+                            'mandatory_balance'
+                        ],
+                        actual: (float) (
+                            $actualSavingBalances[
+                                'WAJIB'
+                            ] ?? 0
+                        )
+                    ),
+
+                    $this->moneyMetric(
+                        label: 'Setoran Simpanan Sukarela',
+                        source: $sourceTotals[
+                            'voluntary_deposit'
+                        ],
+                        actual: (float) (
+                            $savingComponentTotals[
+                                'voluntary_deposit'
+                            ] ?? 0
+                        )
+                    ),
+
+                    $this->moneyMetric(
+                        label: 'Penarikan Simpanan Sukarela',
+                        source: $sourceTotals[
+                            'voluntary_withdrawal'
+                        ],
+                        actual: (float) (
+                            $savingComponentTotals[
+                                'voluntary_withdrawal'
+                            ] ?? 0
+                        )
+                    ),
+
+                    $this->moneyMetric(
+                        label: 'Saldo Simpanan Sukarela',
+                        source: $sourceTotals[
+                            'voluntary_balance'
+                        ],
+                        actual: (float) (
+                            $actualSavingBalances[
+                                'SUKARELA'
+                            ] ?? 0
+                        )
+                    ),
+                ],
+            ],
+
+            [
+                'title' => 'Pembiayaan dan Angsuran',
+                'description'
+                    => 'Perbandingan pembiayaan, pembayaran, bagi hasil, administrasi, dan saldo akhir.',
+
+                'metrics' => [
+                    $this->numberMetric(
+                        label: 'Jumlah Pembiayaan',
+                        source: $sourceLoanCount,
+                        actual: (int) (
+                            $loanTotals?->loan_count ?? 0
+                        )
+                    ),
+
+                    $this->moneyMetric(
+                        label: 'Pembiayaan Baru',
+                        source: $sourceTotals[
+                            'new_financing'
+                        ],
+                        actual: (float) (
+                            $loanTotals?->new_financing ?? 0
+                        )
+                    ),
+
+                    $this->moneyMetric(
+                        label: 'Angsuran Pokok',
+                        source: $sourceTotals[
+                            'principal_payment'
+                        ],
+                        actual: (float) (
+                            $paymentTotals?->principal_payment ?? 0
+                        )
+                    ),
+
+                    $this->moneyMetric(
+                        label: 'Bagi Hasil',
+                        source: $sourceTotals[
+                            'profit_share'
+                        ],
+                        actual: (float) (
+                            $paymentTotals?->profit_share ?? 0
+                        )
+                    ),
+
+                    /*
+                     * Biaya administrasi disimpan pada pembiayaan,
+                     * termasuk ketika tidak ada pembayaran pokok.
+                     */
+                    $this->moneyMetric(
+                        label: 'Biaya Administrasi',
+                        source: $sourceTotals[
+                            'administration_fee'
+                        ],
+                        actual: (float) (
+                            $loanTotals?->administration_fee ?? 0
+                        )
+                    ),
+
+                    $this->moneyMetric(
+                        label: 'Sisa Pembiayaan Cut-off',
+                        source: $sourceTotals[
+                            'remaining_financing'
+                        ],
+                        actual: (float) (
+                            $loanTotals?->outstanding_principal ?? 0
+                        )
+                    ),
+
+                    $this->numberMetric(
+                        label: 'Jumlah Angsuran',
+                        source: $sourceInstallmentCount,
+                        actual: $actualInstallmentCount
+                    ),
+
+                    $this->numberMetric(
+                        label: 'Jumlah Pembayaran',
+                        source: $sourceInstallmentCount,
+                        actual: (int) (
+                            $paymentTotals?->payment_count ?? 0
+                        )
+                    ),
+                ],
+            ],
+        ];
+
+        $allMetrics = collect($sections)
+            ->flatMap(
+                fn (array $section) => $section['metrics']
+            );
+
+        $matchedCount = $allMetrics
+            ->where('matched', true)
+            ->count();
+
+        $differenceCount = $allMetrics
+            ->where('matched', false)
+            ->count();
+
+        return [
+            'batch' => $batch,
+            'sections' => $sections,
+
+            'summary' => [
+                'metric_count' => $allMetrics->count(),
+                'matched_count' => $matchedCount,
+                'difference_count' => $differenceCount,
+                'all_matched' => $differenceCount === 0,
+            ],
+
+            'generated_at' => now(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function moneyMetric(
+        string $label,
+        float $source,
+        float $actual
+    ): array {
+        $source = $this->money($source);
+        $actual = $this->money($actual);
+        $difference = $this->money(
+            $actual - $source
+        );
+
+        return [
+            'label' => $label,
+            'format' => 'money',
+            'source' => $source,
+            'actual' => $actual,
+            'difference' => $difference,
+            'matched' => abs($difference) < 0.01,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function numberMetric(
+        string $label,
+        int $source,
+        int $actual
+    ): array {
+        $difference = $actual - $source;
+
+        return [
+            'label' => $label,
+            'format' => 'number',
+            'source' => $source,
+            'actual' => $actual,
+            'difference' => $difference,
+            'matched' => $difference === 0,
+        ];
+    }
+
+    private function money(
+        float $value
+    ): float {
+        return round($value, 2);
+    }
+}
+
+===== REPORT ROUTES =====
+12:use App\Http\Controllers\ReportController;
+16:use App\Http\Controllers\ShuImportController;
+17:use App\Http\Controllers\ShuPaymentController;
+18:use App\Http\Controllers\ShuPeriodController;
+19:use App\Http\Controllers\ShuReportController;
+144:    Route::get('/shu-periods', [
+145:        ShuPeriodController::class,
+147:    ])->name('shu-periods.index');
+150:        '/shu-periods/{shuPeriod}/imports',
+152:            ShuImportController::class,
+155:    )->name('shu-imports.store');
+158:        '/shu-imports/{shuImportBatch}',
+160:            ShuImportController::class,
+163:    )->name('shu-imports.show');
+166:        '/shu-imports/{shuImportBatch}/rows',
+168:            ShuImportController::class,
+171:    )->name('shu-imports.rows.update');
+174:        '/shu-imports/{shuImportBatch}/process',
+176:            ShuImportController::class,
+179:    )->name('shu-imports.process');
+182:        '/shu-imports/{shuImportBatch}',
+184:            ShuImportController::class,
+187:    )->name('shu-imports.destroy');
+190:        '/shu-periods/{shuPeriod}/approve',
+192:            ShuPeriodController::class,
+195:    )->name('shu-periods.approve');
+198:        '/shu-payments/{shuPayment}',
+200:            ShuPaymentController::class,
+203:    )->name('shu-payments.show');
+206:        '/shu-payments',
+208:            ShuPaymentController::class,
+211:    )->name('shu-payments.index');
+214:        '/shu-periods/{shuPeriod}/payments/bulk',
+216:            ShuPaymentController::class,
+219:    )->name('shu-payments.bulk-store');
+222:        '/shu-allocations/{shuMemberAllocation}/payments',
+224:            ShuPaymentController::class,
+227:    )->name('shu-payments.store');
+230:        '/shu-payments/{shuPayment}/receipt',
+232:            ShuPaymentController::class,
+235:    )->name('shu-payments.receipt');
+238:        '/shu-periods/{shuPeriod}/report',
+240:            ShuReportController::class,
+243:    )->name('shu-reports.show');
+246:        '/shu-periods/{shuPeriod}/report/print',
+248:            ShuReportController::class,
+251:    )->name('shu-reports.print');
+254:        '/shu-periods/{shuPeriod}/report/export',
+256:            ShuReportController::class,
+259:    )->name('shu-reports.export');
+262:        '/shu-payments/{shuPayment}',
+264:            ShuPaymentController::class,
+267:    )->name('shu-payments.show');
+270:        '/shu-payments/{shuPayment}/receipt',
+272:            ShuPaymentController::class,
+275:    )->name('shu-payments.receipt');
+278:        '/shu-allocations/{shuMemberAllocation}/payments',
+280:            ShuPaymentController::class,
+283:    )->name('shu-payments.store');
+285:    Route::post('/shu-periods', [
+286:        ShuPeriodController::class,
+288:    ])->name('shu-periods.store');
+290:    Route::get('/shu-periods/{shuPeriod}', [
+291:        ShuPeriodController::class,
+293:    ])->name('shu-periods.show');
+295:    Route::delete('/shu-periods/{shuPeriod}', [
+296:        ShuPeriodController::class,
+298:    ])->name('shu-periods.destroy');
+346:    Route::get('/reports', [
+347:        ReportController::class,
+349:    ])->name('reports.index');
+359:    Route::get('/reports/print', [
+360:        ReportController::class,
+362:    ])->name('reports.print');
+364:    Route::get('/reports/export', [
+365:        ReportController::class,
+367:    ])->name('reports.export');

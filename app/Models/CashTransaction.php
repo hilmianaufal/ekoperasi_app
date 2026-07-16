@@ -87,6 +87,7 @@ class CashTransaction extends Model
             'saving_transaction' => 'Transaksi Simpanan',
             'loan_disbursement' => 'Pencairan Pinjaman',
             'installment_payment' => 'Pembayaran Angsuran',
+            'shu_payment' => 'Pembayaran SHU',
             default => 'Transaksi Manual',
         };
     }

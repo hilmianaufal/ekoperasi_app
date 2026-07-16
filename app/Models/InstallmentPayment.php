@@ -20,6 +20,11 @@ class InstallmentPayment extends Model
         'payment_method',
         'reference_number',
         'notes',
+        'import_batch_id',
+        'import_row_id',
+        'principal_amount',
+        'profit_share_amount',
+        'administration_fee',
     ];
 
     protected function casts(): array
@@ -28,6 +33,9 @@ class InstallmentPayment extends Model
             'payment_date' => 'date',
             'amount' => 'decimal:2',
             'remaining_after' => 'decimal:2',
+            'principal_amount' => 'decimal:2',
+            'profit_share_amount' => 'decimal:2',
+            'administration_fee' => 'decimal:2',
         ];
     }
 
@@ -37,6 +45,16 @@ class InstallmentPayment extends Model
             LoanInstallment::class,
             'loan_installment_id'
         );
+    }
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(ImportBatch::class);
+    }
+
+    public function importRow(): BelongsTo
+    {
+        return $this->belongsTo(ImportRow::class);
     }
 
     public function user(): BelongsTo

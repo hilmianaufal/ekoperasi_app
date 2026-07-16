@@ -3,23 +3,50 @@
 namespace App\Observers;
 
 use App\Models\Loan;
-use App\Services\CashLedgerService;
+use App\Services\Accounting\AccountingJournalService;
 
 class LoanObserver
 {
-    public function __construct(
-        private readonly CashLedgerService $cashLedgerService
-    ) {
+    public function created(
+        Loan $loan
+    ): void {
+        if (
+            in_array(
+                $loan->status,
+                [
+                    'active',
+                    'paid',
+                ],
+                true
+            )
+        ) {
+            app(
+                AccountingJournalService::class
+            )->recordLoanDisbursement(
+                $loan
+            );
+        }
     }
 
-    public function updated(Loan $loan): void
-    {
+    public function updated(
+        Loan $loan
+    ): void {
         if (
             $loan->wasChanged('status')
-            && $loan->status === 'active'
+            && in_array(
+                $loan->status,
+                [
+                    'active',
+                    'paid',
+                ],
+                true
+            )
         ) {
-            $this->cashLedgerService
-                ->recordLoanDisbursement($loan);
+            app(
+                AccountingJournalService::class
+            )->recordLoanDisbursement(
+                $loan
+            );
         }
     }
 }

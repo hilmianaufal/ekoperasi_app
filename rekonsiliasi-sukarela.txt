@@ -1,0 +1,117 @@
+REKONSILIASI SIMPANAN SUKARELA
+========================================
+
+PERIODE: 2026-03
+----------------------------------------
+Setoran Excel      : Rp2.285.000
+Setoran Aplikasi   : Rp7.285.000
+Selisih Setoran    : Rp5.000.000
+
+Penarikan Excel    : Rp332.000
+Penarikan Aplikasi : Rp332.000
+Selisih Penarikan  : Rp0
+
+PERIODE: 2026-04
+----------------------------------------
+Setoran Excel      : Rp525.000
+Setoran Aplikasi   : Rp525.000
+Selisih Setoran    : Rp0
+
+Penarikan Excel    : Rp0
+Penarikan Aplikasi : Rp150.000
+Selisih Penarikan  : Rp150.000
+
+
+RINCIAN TRANSAKSI PADA BULAN BERBEDA
+========================================
+
+Tanggal : 2026-03-31
+Anggota : RICE ARIYANI (AGT-0051)
+Jenis   : voluntary_deposit
+Nominal : Rp1.000.000
+Sumber  : Setoran simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet MARET, baris 57.
+----------------------------------------
+Tanggal : 2026-03-31
+Anggota : SUTIANI (AGT-0071)
+Jenis   : voluntary_deposit
+Nominal : Rp50.000
+Sumber  : Setoran simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet MARET, baris 77.
+----------------------------------------
+Tanggal : 2026-03-31
+Anggota : PARNO (AGT-0072)
+Jenis   : voluntary_deposit
+Nominal : Rp20.000
+Sumber  : Setoran simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet MARET, baris 78.
+----------------------------------------
+Tanggal : 2026-03-31
+Anggota : LAILA NURFIKA (AGT-0076)
+Jenis   : voluntary_deposit
+Nominal : Rp5.000.000
+Sumber  : Setoran simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet MARET, baris 82.
+----------------------------------------
+Tanggal : 2026-03-31
+Anggota : SULISTYANI (AGT-0077)
+Jenis   : voluntary_deposit
+Nominal : Rp150.000
+Sumber  : Setoran simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet MARET, baris 83.
+----------------------------------------
+Tanggal : 2026-03-31
+Anggota : NURFIKA (AGT-0079)
+Jenis   : voluntary_deposit
+Nominal : Rp50.000
+Sumber  : Setoran simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet MARET, baris 85.
+----------------------------------------
+Tanggal : 2026-03-31
+Anggota : NURFIKA (AGT-0079)
+Jenis   : voluntary_withdrawal
+Nominal : Rp332.000
+Sumber  : Penarikan simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet MARET, baris 85.
+----------------------------------------
+Tanggal : 2026-03-31
+Anggota : ENI (AGT-0081)
+Jenis   : voluntary_deposit
+Nominal : Rp15.000
+Sumber  : Setoran simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet MARET, baris 87.
+----------------------------------------
+Tanggal : 2026-03-31
+Anggota : SAILA/NURUL (AGT-0085)
+Jenis   : voluntary_deposit
+Nominal : Rp1.000.000
+Sumber  : Setoran simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet MARET, baris 91.
+----------------------------------------
+Tanggal : 2026-04-30
+Anggota : SRI LESTARI (AGT-0026)
+Jenis   : voluntary_deposit
+Nominal : Rp400.000
+Sumber  : Setoran simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet APRIL, baris 32.
+----------------------------------------
+Tanggal : 2026-04-30
+Anggota : RICE ARIYANI (AGT-0051)
+Jenis   : voluntary_deposit
+Nominal : Rp50.000
+Sumber  : Setoran simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet APRIL, baris 57.
+----------------------------------------
+Tanggal : 2026-04-30
+Anggota : RICE ARIYANI (AGT-0051)
+Jenis   : voluntary_withdrawal
+Nominal : Rp150.000
+Sumber  : Penarikan simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet APRIL, baris 57.
+----------------------------------------
+Tanggal : 2026-04-30
+Anggota : PARNO (AGT-0072)
+Jenis   : voluntary_deposit
+Nominal : Rp10.000
+Sumber  : Setoran simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet APRIL, baris 78.
+----------------------------------------
+Tanggal : 2026-04-30
+Anggota : ENI (AGT-0081)
+Jenis   : voluntary_deposit
+Nominal : Rp15.000
+Sumber  : Setoran simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet APRIL, baris 87.
+----------------------------------------
+Tanggal : 2026-04-30
+Anggota : YULI (AGT-0082)
+Jenis   : voluntary_deposit
+Nominal : Rp50.000
+Sumber  : Setoran simpanan sukarela. Migrasi dari REKAPAN ANGSURAN 2026.xlsx, sheet APRIL, baris 88.
+----------------------------------------
