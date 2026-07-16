@@ -44,11 +44,7 @@ class LoanController extends Controller
                         ->orWhereHas('member', function ($memberQuery) use ($search) {
                             $memberQuery
                                 ->where('name', 'like', "%{$search}%")
-                                ->orWhere(
-                                    'member_number',
-                                    'like',
-                                    "%{$search}%"
-                                );
+                                ->orWhere('member_number', 'like', "%{$search}%");
                         });
                 });
             })
@@ -79,13 +75,29 @@ class LoanController extends Controller
 
         $activeLoanTotal = Loan::query()
             ->where('status', 'active')
+            ->where(function ($query) {
+                $query
+                    ->where('is_legacy', false)
+                    ->orWhereNull('is_legacy');
+            })
             ->sum('total_amount');
 
         $activePaidTotal = LoanInstallment::query()
             ->whereHas('loan', function ($query) {
-                $query->where('status', 'active');
+                $query
+                    ->where('status', 'active')
+                    ->where(function ($loanQuery) {
+                        $loanQuery
+                            ->where('is_legacy', false)
+                            ->orWhereNull('is_legacy');
+                    });
             })
             ->sum('paid_amount');
+
+        $legacyOutstanding = Loan::query()
+            ->where('status', 'active')
+            ->where('is_legacy', true)
+            ->sum('outstanding_principal');
 
         $statistics = [
             'pending' => Loan::query()
@@ -100,9 +112,12 @@ class LoanController extends Controller
                 ->where('status', 'paid')
                 ->count(),
 
-            'outstanding' => max(
-                (float) $activeLoanTotal - (float) $activePaidTotal,
-                0
+            'outstanding' => round(
+                max(
+                    (float) $activeLoanTotal - (float) $activePaidTotal,
+                    0
+                ) + (float) $legacyOutstanding,
+                2
             ),
         ];
 
@@ -128,7 +143,6 @@ class LoanController extends Controller
             ]);
 
         $selectedMemberId = $request->integer('member_id') ?: null;
-
         $setting = AppSetting::current();
 
         return view('loans.create', compact(
@@ -180,7 +194,7 @@ class LoanController extends Controller
                 'required',
                 'integer',
                 'min:1',
-                'max:120',
+                'max:10',
             ],
 
             'purpose' => [
@@ -232,36 +246,44 @@ class LoanController extends Controller
             'tenor_months.required' => 'Tenor pinjaman wajib diisi.',
             'tenor_months.integer' => 'Tenor pinjaman harus berupa angka bulat.',
             'tenor_months.min' => 'Tenor pinjaman minimal 1 bulan.',
-            'tenor_months.max' => 'Tenor pinjaman maksimal 120 bulan.',
+            'tenor_months.max' => 'Tenor pinjaman maksimal 10 bulan.',
 
             'purpose.required' => 'Tujuan pinjaman wajib diisi.',
             'purpose.max' => 'Tujuan pinjaman maksimal 2.000 karakter.',
             'notes.max' => 'Catatan maksimal 2.000 karakter.',
         ]);
 
+        $principal = round((float) $data['principal_amount'], 2);
+        $interestRate = round((float) $data['interest_rate'], 2);
+        $tenor = (int) $data['tenor_months'];
+
         $calculation = $this->calculateLoan(
-            (float) $data['principal_amount'],
-            (float) $data['interest_rate'],
-            (int) $data['tenor_months']
+            $principal,
+            $interestRate,
+            $tenor
         );
 
         $loan = DB::transaction(function () use (
             $data,
+            $principal,
+            $interestRate,
+            $tenor,
             $calculation
         ): Loan {
             $loan = Loan::create([
                 'member_id' => $data['member_id'],
                 'created_by' => auth()->id(),
                 'application_date' => $data['application_date'],
-                'principal_amount' => $data['principal_amount'],
-                'interest_rate' => $data['interest_rate'],
-                'tenor_months' => $data['tenor_months'],
+                'principal_amount' => $principal,
+                'interest_rate' => $interestRate,
+                'tenor_months' => $tenor,
                 'interest_amount' => $calculation['interest_amount'],
                 'total_amount' => $calculation['total_amount'],
                 'monthly_installment' => $calculation['monthly_installment'],
                 'purpose' => $data['purpose'],
                 'notes' => $data['notes'] ?? null,
                 'status' => 'pending',
+                'is_legacy' => false,
             ]);
 
             $loan->update([
@@ -292,16 +314,20 @@ class LoanController extends Controller
             'installments.payments',
         ]);
 
-        $paidAmount = (float) $loan->installments
-            ->sum('paid_amount');
+        $paidAmount = round(
+            (float) $loan->installments->sum('paid_amount'),
+            2
+        );
 
         $summary = [
             'paid_amount' => $paidAmount,
 
-            'remaining_amount' => max(
-                (float) $loan->total_amount - $paidAmount,
-                0
-            ),
+            'remaining_amount' => $loan->is_legacy
+                ? max((float) $loan->outstanding_principal, 0)
+                : max(
+                    round((float) $loan->total_amount - $paidAmount, 2),
+                    0
+                ),
 
             'paid_installments' => $loan->installments
                 ->where('status', 'paid')
@@ -339,35 +365,80 @@ class LoanController extends Controller
                 ]);
             }
 
+            if ((bool) $lockedLoan->is_legacy) {
+                throw ValidationException::withMessages([
+                    'start_date' => 'Pembiayaan hasil migrasi tidak dapat disetujui sebagai pinjaman baru.',
+                ]);
+            }
+
             $startDate = Carbon::parse($data['start_date'])
                 ->startOfDay();
 
-            if ($startDate->lt($lockedLoan->application_date)) {
+            if (
+                $lockedLoan->application_date
+                && $startDate->lt($lockedLoan->application_date)
+            ) {
                 throw ValidationException::withMessages([
                     'start_date' => 'Tanggal pencairan tidak boleh lebih awal dari tanggal pengajuan.',
                 ]);
             }
 
-            $lockedLoan->installments()->delete();
-
             $tenor = (int) $lockedLoan->tenor_months;
-            $principal = (float) $lockedLoan->principal_amount;
-            $interestRate = (float) $lockedLoan->interest_rate;
 
+            if ($tenor < 1 || $tenor > 10) {
+                throw ValidationException::withMessages([
+                    'start_date' => 'Tenor pinjaman harus antara 1 sampai 10 bulan.',
+                ]);
+            }
+
+            $principal = round(
+                (float) $lockedLoan->principal_amount,
+                2
+            );
+
+            $interestRate = round(
+                (float) $lockedLoan->interest_rate,
+                2
+            );
+
+            if ($principal <= 0) {
+                throw ValidationException::withMessages([
+                    'start_date' => 'Nominal pokok pinjaman harus lebih dari Rp0.',
+                ]);
+            }
+
+            /*
+             * Bunga dihitung satu kali dari seluruh pokok.
+             * Contoh: Rp1.000.000 x 1,5% = Rp15.000.
+             */
+            $totalInterest = round(
+                $principal * ($interestRate / 100),
+                2
+            );
+
+            $totalLoan = round(
+                $principal + $totalInterest,
+                2
+            );
+
+            /*
+             * Pokok dan bunga total dibagi rata mengikuti tenor.
+             */
             $principalPerMonth = round(
                 $principal / $tenor,
                 2
             );
 
             $interestPerMonth = round(
-                $principal * ($interestRate / 100),
+                $totalInterest / $tenor,
                 2
             );
 
             $allocatedPrincipal = 0;
-            $totalInterest = 0;
-            $totalLoan = 0;
+            $allocatedInterest = 0;
             $maturityDate = null;
+
+            $lockedLoan->installments()->delete();
 
             for ($number = 1; $number <= $tenor; $number++) {
                 $principalPart = $number === $tenor
@@ -377,13 +448,25 @@ class LoanController extends Controller
                     )
                     : $principalPerMonth;
 
+                $interestPart = $number === $tenor
+                    ? round(
+                        $totalInterest - $allocatedInterest,
+                        2
+                    )
+                    : $interestPerMonth;
+
+                $installmentTotal = round(
+                    $principalPart + $interestPart,
+                    2
+                );
+
                 $allocatedPrincipal = round(
                     $allocatedPrincipal + $principalPart,
                     2
                 );
 
-                $installmentTotal = round(
-                    $principalPart + $interestPerMonth,
+                $allocatedInterest = round(
+                    $allocatedInterest + $interestPart,
                     2
                 );
 
@@ -395,23 +478,13 @@ class LoanController extends Controller
                     'installment_number' => $number,
                     'due_date' => $dueDate,
                     'principal_amount' => $principalPart,
-                    'interest_amount' => $interestPerMonth,
+                    'interest_amount' => $interestPart,
                     'total_amount' => $installmentTotal,
                     'paid_amount' => 0,
                     'paid_at' => null,
                     'status' => 'unpaid',
                     'notes' => null,
                 ]);
-
-                $totalInterest = round(
-                    $totalInterest + $interestPerMonth,
-                    2
-                );
-
-                $totalLoan = round(
-                    $totalLoan + $installmentTotal,
-                    2
-                );
 
                 $maturityDate = $dueDate;
             }
@@ -438,7 +511,7 @@ class LoanController extends Controller
             ->route('loans.show', $loan)
             ->with(
                 'success',
-                'Pinjaman berhasil disetujui dan jadwal angsuran telah dibuat.'
+                'Pinjaman berhasil disetujui. Bunga keseluruhan telah dibagi rata mengikuti tenor.'
             );
     }
 
@@ -515,13 +588,20 @@ class LoanController extends Controller
         float $interestRate,
         int $tenor
     ): array {
-        $monthlyInterest = round(
-            $principal * ($interestRate / 100),
-            2
-        );
+        if ($principal <= 0) {
+            throw new \InvalidArgumentException(
+                'Pokok pinjaman harus lebih dari Rp0.'
+            );
+        }
+
+        if ($tenor < 1 || $tenor > 10) {
+            throw new \InvalidArgumentException(
+                'Tenor pinjaman harus antara 1 sampai 10 bulan.'
+            );
+        }
 
         $interestAmount = round(
-            $monthlyInterest * $tenor,
+            $principal * ($interestRate / 100),
             2
         );
 
