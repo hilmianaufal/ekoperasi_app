@@ -35,9 +35,11 @@ class Member extends Model
 
     public function getGenderLabelAttribute(): string
     {
-        return $this->gender === 'male'
-            ? 'Laki-laki'
-            : 'Perempuan';
+        return match ($this->gender) {
+            'male' => 'Laki-laki',
+            'female' => 'Perempuan',
+            default => 'Belum diisi',
+        };
     }
 
     public function getStatusLabelAttribute(): string

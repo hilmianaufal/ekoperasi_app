@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -20,6 +20,9 @@ class SavingTransaction extends Model
         'amount',
         'balance_after',
         'notes',
+        'import_batch_id',
+        'import_row_id',
+        'import_component',
     ];
 
     protected function casts(): array
@@ -51,5 +54,18 @@ class SavingTransaction extends Model
         return $this->transaction_type === 'deposit'
             ? 'Setoran'
             : 'Penarikan';
+    }
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(
+            ImportBatch::class
+        );
+    }
+
+    public function importRow(): BelongsTo
+    {
+        return $this->belongsTo(
+            ImportRow::class
+        );
     }
 }

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CashTransactionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DataImportController;
 use App\Http\Controllers\InstallmentController;
 use App\Http\Controllers\InstallmentPaymentController;
 use App\Http\Controllers\LoanController;
@@ -101,6 +102,39 @@ Route::middleware('auth')->group(function () {
         CashTransactionController::class,
         'create',
     ])->name('cash-transactions.create');
+
+    Route::get('/data-imports', [
+        DataImportController::class,
+        'index',
+    ])->name('data-imports.index');
+
+    Route::post('/data-imports', [
+        DataImportController::class,
+        'store',
+    ])->name('data-imports.store');
+
+    Route::post(
+        '/data-imports/{importBatch}/process-members-savings',
+        [
+            DataImportController::class,
+            'processMembersSavings',
+        ]
+    )->name('data-imports.process-members-savings');
+
+    Route::get('/data-imports/{importBatch}', [
+        DataImportController::class,
+        'show',
+    ])->name('data-imports.show');
+
+    Route::put('/data-imports/{importBatch}/mappings', [
+        DataImportController::class,
+        'updateMappings',
+    ])->name('data-imports.mappings.update');
+
+    Route::delete('/data-imports/{importBatch}', [
+        DataImportController::class,
+        'destroy',
+    ])->name('data-imports.destroy');
 
     Route::get('/reports', [
         ReportController::class,

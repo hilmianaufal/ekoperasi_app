@@ -22,22 +22,15 @@
     @stack('styles')
 </head>
 
-<body
-    x-data="{ sidebarOpen: false }"
-    class="min-h-screen bg-slate-100 text-slate-800">
+<body x-data="{ sidebarOpen: false }" class="min-h-screen bg-slate-100 text-slate-800">
 
     <!-- Overlay mobile -->
-    <div
-        x-show="sidebarOpen"
-        x-cloak
-        x-transition.opacity
-        x-on:click="sidebarOpen = false"
+    <div x-show="sidebarOpen" x-cloak x-transition.opacity x-on:click="sidebarOpen = false"
         class="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm lg:hidden">
     </div>
 
     <!-- Sidebar -->
-    <aside
-        x-bind:class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+    <aside x-bind:class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
         class="fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-950 text-white transition-transform duration-300 lg:translate-x-0">
 
         <!-- Brand -->
@@ -46,24 +39,20 @@
             <div class="flex items-center gap-3">
 
                 @if ($appSetting?->logo_url)
+                    <div
+                        class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg shadow-emerald-950/40">
 
-                    <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg shadow-emerald-950/40">
-
-                        <img
-                            src="{{ $appSetting->logo_url }}"
-                            alt="{{ $appSetting->cooperative_name }}"
+                        <img src="{{ $appSetting->logo_url }}" alt="{{ $appSetting->cooperative_name }}"
                             class="h-full w-full object-contain p-1.5">
 
                     </div>
-
                 @else
-
-                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 shadow-lg shadow-emerald-950/40">
+                    <div
+                        class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 shadow-lg shadow-emerald-950/40">
 
                         <i data-lucide="landmark" class="h-7 w-7"></i>
 
                     </div>
-
                 @endif
 
                 <div class="min-w-0 flex-1">
@@ -78,9 +67,7 @@
 
                 </div>
 
-                <button
-                    type="button"
-                    x-on:click="sidebarOpen = false"
+                <button type="button" x-on:click="sidebarOpen = false"
                     class="rounded-xl p-2 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden">
 
                     <i data-lucide="x" class="h-5 w-5"></i>
@@ -98,8 +85,7 @@
                 Menu utama
             </p>
 
-            <a
-                href="{{ route('dashboard') }}"
+            <a href="{{ route('dashboard') }}"
                 class="{{ request()->routeIs('dashboard')
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
                     : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
@@ -110,8 +96,7 @@
 
             </a>
 
-            <a
-                href="{{ route('members.index') }}"
+            <a href="{{ route('members.index') }}"
                 class="{{ request()->routeIs('members.*')
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
                     : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
@@ -122,8 +107,7 @@
 
             </a>
 
-            <a
-                href="{{ route('savings.index') }}"
+            <a href="{{ route('savings.index') }}"
                 class="{{ request()->routeIs('savings.*')
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
                     : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
@@ -134,8 +118,7 @@
 
             </a>
 
-            <a
-                href="{{ route('saving-types.index') }}"
+            <a href="{{ route('saving-types.index') }}"
                 class="{{ request()->routeIs('saving-types.*')
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
                     : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
@@ -146,8 +129,7 @@
 
             </a>
 
-            <a
-                href="{{ route('loans.index') }}"
+            <a href="{{ route('loans.index') }}"
                 class="{{ request()->routeIs('loans.*')
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
                     : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
@@ -158,12 +140,8 @@
 
             </a>
 
-            <a
-                href="{{ route('installments.index') }}"
-                class="{{ request()->routeIs([
-                        'installments.*',
-                        'installment-payments.*',
-                    ])
+            <a href="{{ route('installments.index') }}"
+                class="{{ request()->routeIs(['installments.*', 'installment-payments.*'])
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
                     : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
                     flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
@@ -173,8 +151,7 @@
 
             </a>
 
-            <a
-                href="{{ route('cash-transactions.index') }}"
+            <a href="{{ route('cash-transactions.index') }}"
                 class="{{ request()->routeIs('cash-transactions.*')
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
                     : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
@@ -189,8 +166,7 @@
                 Laporan dan sistem
             </p>
 
-            <a
-                href="{{ route('reports.index') }}"
+            <a href="{{ route('reports.index') }}"
                 class="{{ request()->routeIs('reports.*')
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
                     : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
@@ -200,9 +176,16 @@
                 <span>Laporan</span>
 
             </a>
+            <a href="{{ route('data-imports.index') }}"
+                class="{{ request()->routeIs('data-imports.*')
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
+        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
 
-            <a
-                href="{{ route('settings.edit') }}"
+                <i data-lucide="file-up" class="h-5 w-5"></i>
+                <span>Import Data Awal</span>
+            </a>
+            <a href="{{ route('settings.edit') }}"
                 class="{{ request()->routeIs('settings.*')
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
                     : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
@@ -222,7 +205,8 @@
 
                 <div class="flex items-center gap-3">
 
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 font-bold">
+                    <div
+                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 font-bold">
 
                         {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
 
@@ -240,18 +224,12 @@
 
                     </div>
 
-                    <form
-                        action="{{ route('logout') }}"
-                        method="POST"
-                        id="logout-form">
+                    <form action="{{ route('logout') }}" method="POST" id="logout-form">
 
                         @csrf
 
-                        <button
-                            type="button"
-                            onclick="confirmLogout()"
-                            class="rounded-xl p-2 text-slate-400 hover:bg-red-500/15 hover:text-red-400"
-                            title="Keluar">
+                        <button type="button" onclick="confirmLogout()"
+                            class="rounded-xl p-2 text-slate-400 hover:bg-red-500/15 hover:text-red-400" title="Keluar">
 
                             <i data-lucide="log-out" class="h-5 w-5"></i>
 
@@ -276,9 +254,7 @@
 
                 <div class="flex min-w-0 items-center gap-3">
 
-                    <button
-                        type="button"
-                        x-on:click="sidebarOpen = true"
+                    <button type="button" x-on:click="sidebarOpen = true"
                         class="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 hover:bg-slate-50 lg:hidden">
 
                         <i data-lucide="menu" class="h-5 w-5"></i>
@@ -292,10 +268,7 @@
                         </h2>
 
                         <p class="hidden truncate text-xs text-slate-500 sm:block">
-                            @yield(
-                                'page-description',
-                                $appSetting?->tagline ?? 'Sistem Manajemen Koperasi'
-                            )
+                            @yield('page-description', $appSetting?->tagline ?? 'Sistem Manajemen Koperasi')
                         </p>
 
                     </div>
@@ -304,19 +277,21 @@
 
                 <div class="flex items-center gap-2">
 
-                    <button
-                        type="button"
+                    <button type="button"
                         class="relative rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 hover:bg-slate-50 hover:text-emerald-600">
 
                         <i data-lucide="bell" class="h-5 w-5"></i>
 
-                        <span class="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-red-500"></span>
+                        <span
+                            class="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-red-500"></span>
 
                     </button>
 
-                    <div class="hidden items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 sm:flex">
+                    <div
+                        class="hidden items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 sm:flex">
 
-                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 font-bold text-emerald-700">
+                        <div
+                            class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 font-bold text-emerald-700">
 
                             {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
 
@@ -358,7 +333,7 @@
 
     @if (session('success'))
         <script>
-            window.addEventListener('load', function () {
+            window.addEventListener('load', function() {
                 Swal.fire({
                     icon: 'success',
                     title: 'Berhasil',
@@ -372,7 +347,7 @@
 
     @if (session('error'))
         <script>
-            window.addEventListener('load', function () {
+            window.addEventListener('load', function() {
                 Swal.fire({
                     icon: 'error',
                     title: 'Gagal',

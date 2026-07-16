@@ -78,7 +78,7 @@
 
                     <p class="mt-2 text-sm text-slate-500">
                         Bergabung sejak
-                        {{ $member->join_date->translatedFormat('d F Y') }}
+                        {{ $member->join_date?->translatedFormat('d F Y') ?? 'Belum diisi' }}
                     </p>
 
                 </div>
