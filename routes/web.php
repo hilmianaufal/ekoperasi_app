@@ -11,6 +11,7 @@ use App\Http\Controllers\InstallmentController;
 use App\Http\Controllers\InstallmentPaymentController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\LoanController;
+use App\Http\Controllers\ManualInstallmentController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SavingTransactionController;
@@ -293,6 +294,21 @@ Route::middleware('auth')->group(function () {
             'print',
         ]
     )->name('trial-balance.print');
+
+    Route::get('/installments/manual/create', [
+        ManualInstallmentController::class,
+        'create',
+    ])->name('manual-installments.create');
+
+    Route::post('/installments/manual', [
+        ManualInstallmentController::class,
+        'store',
+    ])->name('manual-installments.store');
+
+    Route::get('/installments/{loanInstallment}/pay', [
+        InstallmentController::class,
+        'create',
+    ])->name('installments.pay');
 
     Route::get(
         '/trial-balance/export',

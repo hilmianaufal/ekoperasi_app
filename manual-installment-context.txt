@@ -1,0 +1,4107 @@
+
+
+===== app/Models/Loan.php =====
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Loan extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'loan_number',
+        'member_id',
+        'created_by',
+        'approved_by',
+        'application_date',
+        'principal_amount',
+        'interest_rate',
+        'tenor_months',
+        'interest_amount',
+        'total_amount',
+        'monthly_installment',
+        'start_date',
+        'maturity_date',
+        'purpose',
+        'notes',
+        'status',
+        'approved_at',
+        'rejection_reason',
+        'import_batch_id',
+        'source_number',
+        'is_legacy',
+        'opening_principal',
+        'disbursed_during_import',
+        'outstanding_principal',
+        'profit_share_paid',
+        'administration_paid',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'application_date' => 'date',
+            'start_date' => 'date',
+            'maturity_date' => 'date',
+            'approved_at' => 'datetime',
+            'principal_amount' => 'decimal:2',
+            'interest_rate' => 'decimal:2',
+            'interest_amount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+            'monthly_installment' => 'decimal:2',
+            'is_legacy' => 'boolean',
+            'opening_principal' => 'decimal:2',
+            'disbursed_during_import' => 'decimal:2',
+            'outstanding_principal' => 'decimal:2',
+            'profit_share_paid' => 'decimal:2',
+            'administration_paid' => 'decimal:2',
+        ];
+    }
+
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(Member::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function installments(): HasMany
+    {
+        return $this->hasMany(LoanInstallment::class)
+            ->orderBy('installment_number');
+    }
+
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(ImportBatch::class);
+    }
+
+    public function importEntries(): HasMany
+    {
+        return $this->hasMany(LoanImportEntry::class);
+    }
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'pending' => 'Menunggu Persetujuan',
+            'active' => 'Aktif',
+            'rejected' => 'Ditolak',
+            'paid' => 'Lunas',
+            'cancelled' => 'Dibatalkan',
+            default => ucfirst($this->status),
+        };
+    }
+}
+
+
+===== app/Models/LoanInstallment.php =====
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class LoanInstallment extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'loan_id',
+        'installment_number',
+        'due_date',
+        'principal_amount',
+        'interest_amount',
+        'total_amount',
+        'paid_amount',
+        'paid_at',
+        'status',
+        'notes',
+        'import_batch_id',
+        'import_row_id',
+        'reported_remaining_principal',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'due_date' => 'date',
+            'paid_at' => 'datetime',
+            'principal_amount' => 'decimal:2',
+            'interest_amount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+            'paid_amount' => 'decimal:2',
+            'reported_remaining_principal' => 'decimal:2',
+        ];
+    }
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(ImportBatch::class);
+    }
+
+    public function importRow(): BelongsTo
+    {
+        return $this->belongsTo(ImportRow::class);
+    }
+
+    public function loan(): BelongsTo
+    {
+        return $this->belongsTo(Loan::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(
+            InstallmentPayment::class,
+            'loan_installment_id'
+        )
+            ->latest('payment_date')
+            ->latest('id');
+    }
+
+    public function getRemainingAmountAttribute(): float
+    {
+        return max(
+            (float) $this->total_amount
+                - (float) $this->paid_amount,
+            0
+        );
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'unpaid' => 'Belum Dibayar',
+            'partial' => 'Dibayar Sebagian',
+            'paid' => 'Lunas',
+            'overdue' => 'Terlambat',
+            default => ucfirst($this->status),
+        };
+    }
+}
+
+
+===== app/Models/InstallmentPayment.php =====
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class InstallmentPayment extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'payment_code',
+        'loan_installment_id',
+        'user_id',
+        'payment_date',
+        'amount',
+        'remaining_after',
+        'payment_method',
+        'reference_number',
+        'notes',
+        'import_batch_id',
+        'import_row_id',
+        'principal_amount',
+        'profit_share_amount',
+        'administration_fee',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'payment_date' => 'date',
+            'amount' => 'decimal:2',
+            'remaining_after' => 'decimal:2',
+            'principal_amount' => 'decimal:2',
+            'profit_share_amount' => 'decimal:2',
+            'administration_fee' => 'decimal:2',
+        ];
+    }
+
+    public function installment(): BelongsTo
+    {
+        return $this->belongsTo(
+            LoanInstallment::class,
+            'loan_installment_id'
+        );
+    }
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(ImportBatch::class);
+    }
+
+    public function importRow(): BelongsTo
+    {
+        return $this->belongsTo(ImportRow::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function getPaymentMethodLabelAttribute(): string
+    {
+        return match ($this->payment_method) {
+            'cash' => 'Tunai',
+            'transfer' => 'Transfer',
+            'other' => 'Lainnya',
+            default => ucfirst($this->payment_method),
+        };
+    }
+}
+
+
+===== app/Http/Controllers/LoanController.php =====
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\AppSetting;
+use App\Models\Loan;
+use App\Models\LoanInstallment;
+use App\Models\Member;
+use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+
+class LoanController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $search = trim((string) $request->input('search'));
+        $status = $request->input('status');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+
+        $validStatuses = [
+            'pending',
+            'active',
+            'rejected',
+            'paid',
+            'cancelled',
+        ];
+
+        $loans = Loan::query()
+            ->with([
+                'member:id,member_number,name,photo',
+                'creator:id,name',
+                'approver:id,name',
+            ])
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($subQuery) use ($search) {
+                    $subQuery
+                        ->where('loan_number', 'like', "%{$search}%")
+                        ->orWhereHas('member', function ($memberQuery) use ($search) {
+                            $memberQuery
+                                ->where('name', 'like', "%{$search}%")
+                                ->orWhere(
+                                    'member_number',
+                                    'like',
+                                    "%{$search}%"
+                                );
+                        });
+                });
+            })
+            ->when(
+                in_array($status, $validStatuses, true),
+                fn ($query) => $query->where('status', $status)
+            )
+            ->when(
+                $dateFrom,
+                fn ($query) => $query->whereDate(
+                    'application_date',
+                    '>=',
+                    $dateFrom
+                )
+            )
+            ->when(
+                $dateTo,
+                fn ($query) => $query->whereDate(
+                    'application_date',
+                    '<=',
+                    $dateTo
+                )
+            )
+            ->latest('application_date')
+            ->latest('id')
+            ->paginate(12)
+            ->withQueryString();
+
+        $activeLoanTotal = Loan::query()
+            ->where('status', 'active')
+            ->sum('total_amount');
+
+        $activePaidTotal = LoanInstallment::query()
+            ->whereHas('loan', function ($query) {
+                $query->where('status', 'active');
+            })
+            ->sum('paid_amount');
+
+        $statistics = [
+            'pending' => Loan::query()
+                ->where('status', 'pending')
+                ->count(),
+
+            'active' => Loan::query()
+                ->where('status', 'active')
+                ->count(),
+
+            'paid' => Loan::query()
+                ->where('status', 'paid')
+                ->count(),
+
+            'outstanding' => max(
+                (float) $activeLoanTotal - (float) $activePaidTotal,
+                0
+            ),
+        ];
+
+        return view('loans.index', compact(
+            'loans',
+            'statistics',
+            'search',
+            'status',
+            'dateFrom',
+            'dateTo'
+        ));
+    }
+
+    public function create(Request $request): View
+    {
+        $members = Member::query()
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get([
+                'id',
+                'member_number',
+                'name',
+            ]);
+
+        $selectedMemberId = $request->integer('member_id') ?: null;
+
+        $setting = AppSetting::current();
+
+        return view('loans.create', compact(
+            'members',
+            'selectedMemberId',
+            'setting'
+        ));
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $setting = AppSetting::current();
+
+        $principalRules = [
+            'required',
+            'numeric',
+            'min:' . (float) $setting->minimum_loan_amount,
+        ];
+
+        if ($setting->maximum_loan_amount !== null) {
+            $principalRules[] = 'max:'
+                . (float) $setting->maximum_loan_amount;
+        }
+
+        $data = $request->validate([
+            'member_id' => [
+                'required',
+                Rule::exists('members', 'id')->where(
+                    fn ($query) => $query->where('status', 'active')
+                ),
+            ],
+
+            'application_date' => [
+                'required',
+                'date',
+                'before_or_equal:today',
+            ],
+
+            'principal_amount' => $principalRules,
+
+            'interest_rate' => [
+                'required',
+                'numeric',
+                'min:0',
+                'max:100',
+            ],
+
+            'tenor_months' => [
+                'required',
+                'integer',
+                'min:1',
+                'max:120',
+            ],
+
+            'purpose' => [
+                'required',
+                'string',
+                'max:2000',
+            ],
+
+            'notes' => [
+                'nullable',
+                'string',
+                'max:2000',
+            ],
+        ], [
+            'member_id.required' => 'Anggota wajib dipilih.',
+            'member_id.exists' => 'Anggota tidak ditemukan atau sedang tidak aktif.',
+
+            'application_date.required' => 'Tanggal pengajuan wajib diisi.',
+            'application_date.date' => 'Tanggal pengajuan tidak valid.',
+            'application_date.before_or_equal' => 'Tanggal pengajuan tidak boleh melebihi hari ini.',
+
+            'principal_amount.required' => 'Nominal pinjaman wajib diisi.',
+            'principal_amount.numeric' => 'Nominal pinjaman harus berupa angka.',
+            'principal_amount.min' => 'Nominal pinjaman minimal Rp'
+                . number_format(
+                    (float) $setting->minimum_loan_amount,
+                    0,
+                    ',',
+                    '.'
+                )
+                . '.',
+
+            'principal_amount.max' => $setting->maximum_loan_amount
+                ? 'Nominal pinjaman maksimal Rp'
+                    . number_format(
+                        (float) $setting->maximum_loan_amount,
+                        0,
+                        ',',
+                        '.'
+                    )
+                    . '.'
+                : 'Nominal pinjaman melebihi batas maksimal.',
+
+            'interest_rate.required' => 'Persentase bunga wajib diisi.',
+            'interest_rate.numeric' => 'Persentase bunga harus berupa angka.',
+            'interest_rate.min' => 'Persentase bunga minimal 0%.',
+            'interest_rate.max' => 'Persentase bunga maksimal 100%.',
+
+            'tenor_months.required' => 'Tenor pinjaman wajib diisi.',
+            'tenor_months.integer' => 'Tenor pinjaman harus berupa angka bulat.',
+            'tenor_months.min' => 'Tenor pinjaman minimal 1 bulan.',
+            'tenor_months.max' => 'Tenor pinjaman maksimal 120 bulan.',
+
+            'purpose.required' => 'Tujuan pinjaman wajib diisi.',
+            'purpose.max' => 'Tujuan pinjaman maksimal 2.000 karakter.',
+            'notes.max' => 'Catatan maksimal 2.000 karakter.',
+        ]);
+
+        $calculation = $this->calculateLoan(
+            (float) $data['principal_amount'],
+            (float) $data['interest_rate'],
+            (int) $data['tenor_months']
+        );
+
+        $loan = DB::transaction(function () use (
+            $data,
+            $calculation
+        ): Loan {
+            $loan = Loan::create([
+                'member_id' => $data['member_id'],
+                'created_by' => auth()->id(),
+                'application_date' => $data['application_date'],
+                'principal_amount' => $data['principal_amount'],
+                'interest_rate' => $data['interest_rate'],
+                'tenor_months' => $data['tenor_months'],
+                'interest_amount' => $calculation['interest_amount'],
+                'total_amount' => $calculation['total_amount'],
+                'monthly_installment' => $calculation['monthly_installment'],
+                'purpose' => $data['purpose'],
+                'notes' => $data['notes'] ?? null,
+                'status' => 'pending',
+            ]);
+
+            $loan->update([
+                'loan_number' => sprintf(
+                    'PIN-%s-%06d',
+                    now()->format('Y'),
+                    $loan->id
+                ),
+            ]);
+
+            return $loan;
+        });
+
+        return redirect()
+            ->route('loans.show', $loan)
+            ->with(
+                'success',
+                'Pengajuan pinjaman berhasil dibuat dan menunggu persetujuan.'
+            );
+    }
+
+    public function show(Loan $loan): View
+    {
+        $loan->load([
+            'member',
+            'creator:id,name',
+            'approver:id,name',
+            'installments.payments',
+        ]);
+
+        $paidAmount = (float) $loan->installments
+            ->sum('paid_amount');
+
+        $summary = [
+            'paid_amount' => $paidAmount,
+
+            'remaining_amount' => max(
+                (float) $loan->total_amount - $paidAmount,
+                0
+            ),
+
+            'paid_installments' => $loan->installments
+                ->where('status', 'paid')
+                ->count(),
+        ];
+
+        return view('loans.show', compact(
+            'loan',
+            'summary'
+        ));
+    }
+
+    public function approve(
+        Request $request,
+        Loan $loan
+    ): RedirectResponse {
+        $data = $request->validate([
+            'start_date' => [
+                'required',
+                'date',
+            ],
+        ], [
+            'start_date.required' => 'Tanggal pencairan wajib diisi.',
+            'start_date.date' => 'Tanggal pencairan tidak valid.',
+        ]);
+
+        DB::transaction(function () use ($loan, $data): void {
+            $lockedLoan = Loan::query()
+                ->lockForUpdate()
+                ->findOrFail($loan->id);
+
+            if ($lockedLoan->status !== 'pending') {
+                throw ValidationException::withMessages([
+                    'start_date' => 'Pinjaman ini sudah diproses sebelumnya.',
+                ]);
+            }
+
+            $startDate = Carbon::parse($data['start_date'])
+                ->startOfDay();
+
+            if ($startDate->lt($lockedLoan->application_date)) {
+                throw ValidationException::withMessages([
+                    'start_date' => 'Tanggal pencairan tidak boleh lebih awal dari tanggal pengajuan.',
+                ]);
+            }
+
+            $lockedLoan->installments()->delete();
+
+            $tenor = (int) $lockedLoan->tenor_months;
+            $principal = (float) $lockedLoan->principal_amount;
+            $interestRate = (float) $lockedLoan->interest_rate;
+
+            $principalPerMonth = round(
+                $principal / $tenor,
+                2
+            );
+
+            $interestPerMonth = round(
+                $principal * ($interestRate / 100),
+                2
+            );
+
+            $allocatedPrincipal = 0;
+            $totalInterest = 0;
+            $totalLoan = 0;
+            $maturityDate = null;
+
+            for ($number = 1; $number <= $tenor; $number++) {
+                $principalPart = $number === $tenor
+                    ? round(
+                        $principal - $allocatedPrincipal,
+                        2
+                    )
+                    : $principalPerMonth;
+
+                $allocatedPrincipal = round(
+                    $allocatedPrincipal + $principalPart,
+                    2
+                );
+
+                $installmentTotal = round(
+                    $principalPart + $interestPerMonth,
+                    2
+                );
+
+                $dueDate = $startDate
+                    ->copy()
+                    ->addMonthsNoOverflow($number);
+
+                $lockedLoan->installments()->create([
+                    'installment_number' => $number,
+                    'due_date' => $dueDate,
+                    'principal_amount' => $principalPart,
+                    'interest_amount' => $interestPerMonth,
+                    'total_amount' => $installmentTotal,
+                    'paid_amount' => 0,
+                    'paid_at' => null,
+                    'status' => 'unpaid',
+                    'notes' => null,
+                ]);
+
+                $totalInterest = round(
+                    $totalInterest + $interestPerMonth,
+                    2
+                );
+
+                $totalLoan = round(
+                    $totalLoan + $installmentTotal,
+                    2
+                );
+
+                $maturityDate = $dueDate;
+            }
+
+            $monthlyInstallment = round(
+                $totalLoan / $tenor,
+                2
+            );
+
+            $lockedLoan->update([
+                'approved_by' => auth()->id(),
+                'approved_at' => now(),
+                'start_date' => $startDate,
+                'maturity_date' => $maturityDate,
+                'interest_amount' => $totalInterest,
+                'total_amount' => $totalLoan,
+                'monthly_installment' => $monthlyInstallment,
+                'status' => 'active',
+                'rejection_reason' => null,
+            ]);
+        });
+
+        return redirect()
+            ->route('loans.show', $loan)
+            ->with(
+                'success',
+                'Pinjaman berhasil disetujui dan jadwal angsuran telah dibuat.'
+            );
+    }
+
+    public function reject(
+        Request $request,
+        Loan $loan
+    ): RedirectResponse {
+        $data = $request->validate([
+            'rejection_reason' => [
+                'required',
+                'string',
+                'max:2000',
+            ],
+        ], [
+            'rejection_reason.required' => 'Alasan penolakan wajib diisi.',
+            'rejection_reason.max' => 'Alasan penolakan maksimal 2.000 karakter.',
+        ]);
+
+        DB::transaction(function () use ($loan, $data): void {
+            $lockedLoan = Loan::query()
+                ->lockForUpdate()
+                ->findOrFail($loan->id);
+
+            if ($lockedLoan->status !== 'pending') {
+                throw ValidationException::withMessages([
+                    'rejection_reason' => 'Pinjaman ini sudah diproses sebelumnya.',
+                ]);
+            }
+
+            $lockedLoan->update([
+                'approved_by' => auth()->id(),
+                'approved_at' => now(),
+                'status' => 'rejected',
+                'rejection_reason' => $data['rejection_reason'],
+            ]);
+        });
+
+        return redirect()
+            ->route('loans.show', $loan)
+            ->with(
+                'success',
+                'Pengajuan pinjaman telah ditolak.'
+            );
+    }
+
+    public function cancel(Loan $loan): RedirectResponse
+    {
+        DB::transaction(function () use ($loan): void {
+            $lockedLoan = Loan::query()
+                ->lockForUpdate()
+                ->findOrFail($loan->id);
+
+            if ($lockedLoan->status !== 'pending') {
+                throw ValidationException::withMessages([
+                    'loan' => 'Hanya pengajuan yang masih menunggu yang dapat dibatalkan.',
+                ]);
+            }
+
+            $lockedLoan->update([
+                'status' => 'cancelled',
+            ]);
+        });
+
+        return redirect()
+            ->route('loans.index')
+            ->with(
+                'success',
+                'Pengajuan pinjaman berhasil dibatalkan.'
+            );
+    }
+
+    private function calculateLoan(
+        float $principal,
+        float $interestRate,
+        int $tenor
+    ): array {
+        $monthlyInterest = round(
+            $principal * ($interestRate / 100),
+            2
+        );
+
+        $interestAmount = round(
+            $monthlyInterest * $tenor,
+            2
+        );
+
+        $totalAmount = round(
+            $principal + $interestAmount,
+            2
+        );
+
+        $monthlyInstallment = round(
+            $totalAmount / $tenor,
+            2
+        );
+
+        return [
+            'interest_amount' => $interestAmount,
+            'total_amount' => $totalAmount,
+            'monthly_installment' => $monthlyInstallment,
+        ];
+    }
+}
+
+
+===== app/Services/CashLedgerService.php =====
+<?php
+
+namespace App\Services;
+
+use App\Models\CashTransaction;
+use App\Models\InstallmentPayment;
+use App\Models\Loan;
+use App\Models\SavingTransaction;
+
+class CashLedgerService
+{
+    public function recordSavingTransaction(
+        SavingTransaction $savingTransaction
+    ): CashTransaction {
+        $savingTransaction->loadMissing([
+            'member:id,name,member_number',
+            'savingType:id,name',
+        ]);
+
+        $isDeposit = $savingTransaction->transaction_type === 'deposit';
+
+        return CashTransaction::firstOrCreate(
+            [
+                'source_type' => 'saving_transaction',
+                'source_id' => $savingTransaction->id,
+            ],
+            [
+                'transaction_date' => $savingTransaction->transaction_date,
+                'direction' => $isDeposit ? 'income' : 'expense',
+                'category' => $isDeposit
+                    ? 'Setoran Simpanan'
+                    : 'Penarikan Simpanan',
+                'amount' => $savingTransaction->amount,
+                'payment_method' => 'cash',
+                'description' => sprintf(
+                    '%s %s anggota %s (%s).',
+                    $isDeposit ? 'Setoran' : 'Penarikan',
+                    $savingTransaction->savingType->name,
+                    $savingTransaction->member->name,
+                    $savingTransaction->member->member_number
+                ),
+                'user_id' => $savingTransaction->user_id,
+            ]
+        );
+    }
+
+    public function recordLoanDisbursement(
+        Loan $loan
+    ): CashTransaction {
+        $loan->loadMissing([
+            'member:id,name,member_number',
+        ]);
+
+        return CashTransaction::firstOrCreate(
+            [
+                'source_type' => 'loan_disbursement',
+                'source_id' => $loan->id,
+            ],
+            [
+                'transaction_date' => $loan->start_date
+                    ?? $loan->application_date,
+                'direction' => 'expense',
+                'category' => 'Pencairan Pinjaman',
+                'amount' => $loan->principal_amount,
+                'payment_method' => 'cash',
+                'description' => sprintf(
+                    'Pencairan pinjaman %s kepada %s (%s).',
+                    $loan->loan_number,
+                    $loan->member->name,
+                    $loan->member->member_number
+                ),
+                'user_id' => $loan->approved_by
+                    ?? $loan->created_by,
+            ]
+        );
+    }
+
+    public function recordInstallmentPayment(
+        InstallmentPayment $payment
+    ): CashTransaction {
+        $payment->loadMissing([
+            'installment.loan.member:id,name,member_number',
+        ]);
+
+        $installment = $payment->installment;
+        $loan = $installment->loan;
+        $member = $loan->member;
+
+        return CashTransaction::firstOrCreate(
+            [
+                'source_type' => 'installment_payment',
+                'source_id' => $payment->id,
+            ],
+            [
+                'transaction_date' => $payment->payment_date,
+                'direction' => 'income',
+                'category' => 'Pembayaran Angsuran',
+                'amount' => $payment->amount,
+                'payment_method' => $payment->payment_method,
+                'description' => sprintf(
+                    'Pembayaran angsuran ke-%d pinjaman %s dari %s (%s).',
+                    $installment->installment_number,
+                    $loan->loan_number,
+                    $member->name,
+                    $member->member_number
+                ),
+                'user_id' => $payment->user_id,
+            ]
+        );
+    }
+}
+
+
+===== app/Services/Accounting/AccountingJournalService.php =====
+<?php
+
+namespace App\Services\Accounting;
+
+use App\Models\AccountingAccountMapping;
+use App\Models\InstallmentPayment;
+use App\Models\JournalEntry;
+use App\Models\Loan;
+use App\Models\SavingTransaction;
+use App\Models\ShuPayment;
+use App\Models\ShuPeriod;
+use DomainException;
+use Illuminate\Support\Facades\DB;
+
+class AccountingJournalService
+{
+    public function recordSavingTransaction(
+        SavingTransaction $transaction
+    ): ?JournalEntry {
+        $transaction->loadMissing([
+            'member:id,member_number,name',
+            'savingType:id,code,name',
+        ]);
+
+        $amount = $this->money(
+            $transaction->amount
+        );
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        $savingMapping = match (
+            strtoupper(
+                (string) $transaction
+                    ->savingType
+                    ->code
+            )
+        ) {
+            'POKOK' => 'principal_savings',
+            'WAJIB' => 'mandatory_savings',
+            'SUKARELA' => 'voluntary_savings',
+
+            default => throw new DomainException(
+                sprintf(
+                    'Pemetaan jurnal untuk jenis simpanan %s belum tersedia.',
+                    $transaction->savingType->code
+                )
+            ),
+        };
+
+        $cashAccountId = $this->accountId(
+            'cash'
+        );
+
+        $savingAccountId = $this->accountId(
+            $savingMapping
+        );
+
+        $isDeposit = (
+            $transaction->transaction_type
+            === 'deposit'
+        );
+
+        $description = sprintf(
+            '%s %s anggota %s (%s).',
+            $isDeposit
+                ? 'Setoran'
+                : 'Penarikan',
+            $transaction->savingType->name,
+            $transaction->member->name,
+            $transaction->member->member_number
+        );
+
+        return $this->createPostedEntry(
+            sourceType: 'saving_transaction',
+            sourceId: $transaction->id,
+            entryDate: $transaction->transaction_date,
+            referenceNumber:
+                $transaction->transaction_code,
+            description: $description,
+            userId: $transaction->user_id,
+            lines: $isDeposit
+                ? [
+                    [
+                        'accounting_account_id' =>
+                            $cashAccountId,
+
+                        'description' =>
+                            $description,
+
+                        'debit' => $amount,
+                        'credit' => 0,
+
+                        'member_id' =>
+                            $transaction->member_id,
+                    ],
+                    [
+                        'accounting_account_id' =>
+                            $savingAccountId,
+
+                        'description' =>
+                            $description,
+
+                        'debit' => 0,
+                        'credit' => $amount,
+
+                        'member_id' =>
+                            $transaction->member_id,
+                    ],
+                ]
+                : [
+                    [
+                        'accounting_account_id' =>
+                            $savingAccountId,
+
+                        'description' =>
+                            $description,
+
+                        'debit' => $amount,
+                        'credit' => 0,
+
+                        'member_id' =>
+                            $transaction->member_id,
+                    ],
+                    [
+                        'accounting_account_id' =>
+                            $cashAccountId,
+
+                        'description' =>
+                            $description,
+
+                        'debit' => 0,
+                        'credit' => $amount,
+
+                        'member_id' =>
+                            $transaction->member_id,
+                    ],
+                ]
+        );
+    }
+
+    public function recordLoanDisbursement(
+        Loan $loan
+    ): ?JournalEntry {
+        if (
+            !in_array(
+                $loan->status,
+                [
+                    'active',
+                    'paid',
+                ],
+                true
+            )
+        ) {
+            return null;
+        }
+
+        $loan->loadMissing([
+            'member:id,member_number,name',
+        ]);
+
+        /*
+         * Untuk data legacy, hanya pembiayaan baru
+         * selama periode import yang dianggap pencairan.
+         *
+         * Saldo pembiayaan sebelum periode akan dicatat
+         * melalui jurnal saldo awal pada tahap backfill.
+         */
+        $amount = $loan->is_legacy
+            ? $this->money(
+                $loan->disbursed_during_import
+            )
+            : $this->money(
+                $loan->principal_amount
+            );
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        $description = sprintf(
+            'Pencairan pembiayaan %s kepada %s (%s).',
+            $loan->loan_number,
+            $loan->member->name,
+            $loan->member->member_number
+        );
+
+        return $this->createPostedEntry(
+            sourceType: 'loan_disbursement',
+            sourceId: $loan->id,
+            entryDate:
+                $loan->start_date
+                ?? $loan->application_date,
+            referenceNumber:
+                $loan->loan_number,
+            description: $description,
+            userId:
+                $loan->approved_by
+                ?? $loan->created_by,
+            lines: [
+                [
+                    'accounting_account_id' =>
+                        $this->accountId(
+                            'financing_receivable'
+                        ),
+
+                    'description' =>
+                        $description,
+
+                    'debit' => $amount,
+                    'credit' => 0,
+
+                    'member_id' =>
+                        $loan->member_id,
+
+                    'loan_id' =>
+                        $loan->id,
+                ],
+                [
+                    'accounting_account_id' =>
+                        $this->accountId('cash'),
+
+                    'description' =>
+                        $description,
+
+                    'debit' => 0,
+                    'credit' => $amount,
+
+                    'member_id' =>
+                        $loan->member_id,
+
+                    'loan_id' =>
+                        $loan->id,
+                ],
+            ]
+        );
+    }
+
+    public function recordInstallmentPayment(
+        InstallmentPayment $payment
+    ): ?JournalEntry {
+        $payment->loadMissing([
+            'installment.loan.member:id,member_number,name',
+        ]);
+
+        $installment = $payment->installment;
+        $loan = $installment->loan;
+        $member = $loan->member;
+
+        $amount = $this->money(
+            $payment->amount
+        );
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        /*
+         * Nilai bagi hasil dan administrasi diambil
+         * dari pembagian pembayaran yang telah tersimpan.
+         *
+         * Apabila data pembagian kosong, nominal pembayaran
+         * dianggap sebagai pengembalian pokok agar aplikasi
+         * tidak mengarang nilai pendapatan.
+         */
+        $profitShare = min(
+            max(
+                $this->money(
+                    $payment->profit_share_amount
+                    ?? 0
+                ),
+                0
+            ),
+            $amount
+        );
+
+        $administration = min(
+            max(
+                $this->money(
+                    $payment->administration_fee
+                    ?? 0
+                ),
+                0
+            ),
+            max(
+                $amount - $profitShare,
+                0
+            )
+        );
+
+        $principal = $this->money(
+            $amount
+            - $profitShare
+            - $administration
+        );
+
+        $description = sprintf(
+            'Pembayaran angsuran ke-%d pembiayaan %s dari %s (%s).',
+            $installment->installment_number,
+            $loan->loan_number,
+            $member->name,
+            $member->member_number
+        );
+
+        $lines = [
+            [
+                'accounting_account_id' =>
+                    $this->accountId('cash'),
+
+                'description' =>
+                    $description,
+
+                'debit' => $amount,
+                'credit' => 0,
+
+                'member_id' =>
+                    $loan->member_id,
+
+                'loan_id' =>
+                    $loan->id,
+            ],
+        ];
+
+        if ($principal > 0) {
+            $lines[] = [
+                'accounting_account_id' =>
+                    $this->accountId(
+                        'financing_receivable'
+                    ),
+
+                'description' =>
+                    'Pengembalian pokok pembiayaan',
+
+                'debit' => 0,
+                'credit' => $principal,
+
+                'member_id' =>
+                    $loan->member_id,
+
+                'loan_id' =>
+                    $loan->id,
+            ];
+        }
+
+        if ($profitShare > 0) {
+            $lines[] = [
+                'accounting_account_id' =>
+                    $this->accountId(
+                        'profit_share_revenue'
+                    ),
+
+                'description' =>
+                    'Pendapatan bagi hasil',
+
+                'debit' => 0,
+                'credit' => $profitShare,
+
+                'member_id' =>
+                    $loan->member_id,
+
+                'loan_id' =>
+                    $loan->id,
+            ];
+        }
+
+        if ($administration > 0) {
+            $lines[] = [
+                'accounting_account_id' =>
+                    $this->accountId(
+                        'administration_revenue'
+                    ),
+
+                'description' =>
+                    'Pendapatan administrasi',
+
+                'debit' => 0,
+                'credit' => $administration,
+
+                'member_id' =>
+                    $loan->member_id,
+
+                'loan_id' =>
+                    $loan->id,
+            ];
+        }
+
+        return $this->createPostedEntry(
+            sourceType: 'installment_payment',
+            sourceId: $payment->id,
+            entryDate: $payment->payment_date,
+            referenceNumber:
+                $payment->payment_code,
+            description: $description,
+            userId: $payment->user_id,
+            lines: $lines
+        );
+    }
+
+    public function recordShuAllocation(
+        ShuPeriod $period
+    ): ?JournalEntry {
+        if (
+            !in_array(
+                $period->status,
+                [
+                    'approved',
+                    'distributed',
+                ],
+                true
+            )
+        ) {
+            return null;
+        }
+
+        $allocatedTotal = $this->money(
+            $period->allocations()
+                ->sum('total_shu')
+        );
+
+        if ($allocatedTotal <= 0) {
+            return null;
+        }
+
+        $description = sprintf(
+            'Pengakuan utang SHU anggota periode %d.',
+            $period->year
+        );
+
+        return $this->createPostedEntry(
+            sourceType: 'shu_allocation',
+            sourceId: $period->id,
+            entryDate:
+                $period->calculation_date,
+            referenceNumber:
+                $period->code,
+            description: $description,
+            userId:
+                $period->approved_by,
+            lines: [
+                [
+                    'accounting_account_id' =>
+                        $this->accountId(
+                            'current_shu'
+                        ),
+
+                    'description' =>
+                        'Pengurangan SHU tahun berjalan',
+
+                    'debit' =>
+                        $allocatedTotal,
+
+                    'credit' => 0,
+                ],
+                [
+                    'accounting_account_id' =>
+                        $this->accountId(
+                            'shu_payable'
+                        ),
+
+                    'description' =>
+                        'Utang SHU kepada anggota',
+
+                    'debit' => 0,
+
+                    'credit' =>
+                        $allocatedTotal,
+                ],
+            ]
+        );
+    }
+
+    public function recordShuPayment(
+        ShuPayment $payment
+    ): ?JournalEntry {
+        $payment->loadMissing([
+            'allocation.member:id,member_number,name',
+            'allocation.period:id,code,year',
+        ]);
+
+        $allocation = $payment->allocation;
+        $member = $allocation->member;
+        $period = $allocation->period;
+
+        $amount = $this->money(
+            $payment->amount
+        );
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        $description = sprintf(
+            'Pembayaran SHU tahun %d kepada %s (%s).',
+            $period->year,
+            $member->name,
+            $member->member_number
+        );
+
+        return $this->createPostedEntry(
+            sourceType: 'shu_payment',
+            sourceId: $payment->id,
+            entryDate: $payment->payment_date,
+            referenceNumber:
+                $payment->payment_code,
+            description: $description,
+            userId: $payment->user_id,
+            lines: [
+                [
+                    'accounting_account_id' =>
+                        $this->accountId(
+                            'shu_payable'
+                        ),
+
+                    'description' =>
+                        $description,
+
+                    'debit' => $amount,
+                    'credit' => 0,
+
+                    'member_id' =>
+                        $allocation->member_id,
+                ],
+                [
+                    'accounting_account_id' =>
+                        $this->accountId(
+                            'cash'
+                        ),
+
+                    'description' =>
+                        $description,
+
+                    'debit' => 0,
+                    'credit' => $amount,
+
+                    'member_id' =>
+                        $allocation->member_id,
+                ],
+            ]
+        );
+    }
+
+    private function createPostedEntry(
+        string $sourceType,
+        int $sourceId,
+        mixed $entryDate,
+        ?string $referenceNumber,
+        string $description,
+        ?int $userId,
+        array $lines
+    ): JournalEntry {
+        $normalizedLines = collect($lines)
+            ->map(function (array $line): array {
+                return [
+                    'accounting_account_id' =>
+                        (int) $line[
+                            'accounting_account_id'
+                        ],
+
+                    'description' =>
+                        $line['description']
+                        ?? null,
+
+                    'debit' => $this->money(
+                        $line['debit']
+                        ?? 0
+                    ),
+
+                    'credit' => $this->money(
+                        $line['credit']
+                        ?? 0
+                    ),
+
+                    'member_id' =>
+                        $line['member_id']
+                        ?? null,
+
+                    'loan_id' =>
+                        $line['loan_id']
+                        ?? null,
+                ];
+            })
+            ->filter(
+                fn (array $line): bool =>
+                    $line['debit'] > 0
+                    || $line['credit'] > 0
+            )
+            ->values();
+
+        if ($normalizedLines->count() < 2) {
+            throw new DomainException(
+                'Jurnal otomatis minimal memiliki dua baris.'
+            );
+        }
+
+        $totalDebit = $this->money(
+            $normalizedLines->sum('debit')
+        );
+
+        $totalCredit = $this->money(
+            $normalizedLines->sum('credit')
+        );
+
+        if (
+            $totalDebit <= 0
+            || abs(
+                $totalDebit - $totalCredit
+            ) >= 0.01
+        ) {
+            throw new DomainException(
+                sprintf(
+                    'Jurnal otomatis tidak seimbang. Debit Rp%s dan kredit Rp%s.',
+                    number_format(
+                        $totalDebit,
+                        0,
+                        ',',
+                        '.'
+                    ),
+                    number_format(
+                        $totalCredit,
+                        0,
+                        ',',
+                        '.'
+                    )
+                )
+            );
+        }
+
+        return DB::transaction(
+            function () use (
+                $sourceType,
+                $sourceId,
+                $entryDate,
+                $referenceNumber,
+                $description,
+                $userId,
+                $normalizedLines
+            ): JournalEntry {
+                $existing = JournalEntry::query()
+                    ->where(
+                        'source_type',
+                        $sourceType
+                    )
+                    ->where(
+                        'source_id',
+                        $sourceId
+                    )
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing) {
+                    return $existing;
+                }
+
+                $entry = JournalEntry::create([
+                    'entry_date' =>
+                        $entryDate,
+
+                    'reference_number' =>
+                        $referenceNumber,
+
+                    'description' =>
+                        $description,
+
+                    'source_type' =>
+                        $sourceType,
+
+                    'source_id' =>
+                        $sourceId,
+
+                    'status' =>
+                        'posted',
+
+                    'created_by' =>
+                        $userId,
+
+                    'posted_by' =>
+                        $userId,
+
+                    'posted_at' =>
+                        now(),
+                ]);
+
+                foreach (
+                    $normalizedLines as $line
+                ) {
+                    $entry->lines()->create(
+                        $line
+                    );
+                }
+
+                return $entry->load(
+                    'lines'
+                );
+            }
+        );
+    }
+
+    private function accountId(
+        string $mappingKey
+    ): int {
+        $mapping = AccountingAccountMapping::query()
+            ->with('account:id,is_active,is_header')
+            ->where(
+                'mapping_key',
+                $mappingKey
+            )
+            ->first();
+
+        if (!$mapping) {
+            throw new DomainException(
+                "Mapping akun {$mappingKey} belum tersedia."
+            );
+        }
+
+        if (
+            !$mapping->account
+            || !$mapping->account->is_active
+            || $mapping->account->is_header
+        ) {
+            throw new DomainException(
+                "Akun mapping {$mappingKey} tidak aktif atau bukan akun transaksi."
+            );
+        }
+
+        return (int)
+            $mapping->accounting_account_id;
+    }
+
+    private function money(
+        mixed $value
+    ): float {
+        return round(
+            (float) $value,
+            2
+        );
+    }
+}
+
+
+===== resources/views/installments/index.blade.php =====
+@extends('layouts.app')
+
+@section('title', 'Pembayaran Angsuran')
+@section('page-title', 'Pembayaran Angsuran')
+@section('page-description', 'Kelola tagihan dan pembayaran pinjaman anggota')
+
+@section('content')
+
+    <section class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">
+                        Sisa Tagihan
+                    </p>
+
+                    <h3 class="mt-2 text-xl font-bold text-slate-900">
+                        Rp{{ number_format($statistics['outstanding'], 0, ',', '.') }}
+                    </h3>
+                </div>
+
+                <div class="rounded-2xl bg-blue-100 p-3 text-blue-600">
+                    <i data-lucide="wallet-cards" class="h-6 w-6"></i>
+                </div>
+            </div>
+        </article>
+
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">
+                        Angsuran Terlambat
+                    </p>
+
+                    <h3 class="mt-2 text-3xl font-bold text-slate-900">
+                        {{ number_format($statistics['overdue'], 0, ',', '.') }}
+                    </h3>
+                </div>
+
+                <div class="rounded-2xl bg-red-100 p-3 text-red-600">
+                    <i data-lucide="triangle-alert" class="h-6 w-6"></i>
+                </div>
+            </div>
+        </article>
+
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">
+                        Jatuh Tempo Bulan Ini
+                    </p>
+
+                    <h3 class="mt-2 text-3xl font-bold text-slate-900">
+                        {{ number_format($statistics['due_this_month'], 0, ',', '.') }}
+                    </h3>
+                </div>
+
+                <div class="rounded-2xl bg-amber-100 p-3 text-amber-600">
+                    <i data-lucide="calendar-clock" class="h-6 w-6"></i>
+                </div>
+            </div>
+        </article>
+
+        <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">
+                        Diterima Bulan Ini
+                    </p>
+
+                    <h3 class="mt-2 text-xl font-bold text-slate-900">
+                        Rp{{ number_format($statistics['paid_this_month'], 0, ',', '.') }}
+                    </h3>
+                </div>
+
+                <div class="rounded-2xl bg-emerald-100 p-3 text-emerald-600">
+                    <i data-lucide="circle-dollar-sign" class="h-6 w-6"></i>
+                </div>
+            </div>
+        </article>
+
+    </section>
+
+    <section class="mt-7 rounded-3xl border border-slate-200 bg-white shadow-sm">
+
+        <div class="border-b border-slate-200 p-5 md:p-6">
+
+            <div>
+                <h3 class="font-bold text-slate-900">
+                    Daftar Tagihan Angsuran
+                </h3>
+
+                <p class="mt-1 text-xs text-slate-500">
+                    Pilih angsuran yang akan dibayar oleh anggota.
+                </p>
+            </div>
+
+            <form
+                action="{{ route('installments.index') }}"
+                method="GET"
+                class="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+
+                <div class="relative xl:col-span-2">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                        <i data-lucide="search" class="h-5 w-5"></i>
+                    </div>
+
+                    <input
+                        type="text"
+                        name="search"
+                        value="{{ $search }}"
+                        placeholder="Cari pinjaman atau anggota..."
+                        class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-12 pr-4 text-sm outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+                </div>
+
+                <select
+                    name="status"
+                    class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-500">
+
+                    <option value="">Semua status</option>
+                    <option value="unpaid" @selected($status === 'unpaid')>
+                        Belum Dibayar
+                    </option>
+                    <option value="partial" @selected($status === 'partial')>
+                        Dibayar Sebagian
+                    </option>
+                    <option value="overdue" @selected($status === 'overdue')>
+                        Terlambat
+                    </option>
+                    <option value="paid" @selected($status === 'paid')>
+                        Lunas
+                    </option>
+                </select>
+
+                <input
+                    type="date"
+                    name="date_from"
+                    value="{{ $dateFrom }}"
+                    title="Jatuh tempo mulai"
+                    class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-500">
+
+                <input
+                    type="date"
+                    name="date_to"
+                    value="{{ $dateTo }}"
+                    title="Jatuh tempo sampai"
+                    class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-500">
+
+                <div class="flex gap-2 md:col-span-2 xl:col-span-5 xl:justify-end">
+
+                    <button
+                        type="submit"
+                        class="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800">
+
+                        <i data-lucide="list-filter" class="h-5 w-5"></i>
+                        Filter
+                    </button>
+
+                    @if ($search || $status || $dateFrom || $dateTo)
+                        <a
+                            href="{{ route('installments.index') }}"
+                            class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+
+                            <i data-lucide="rotate-ccw" class="h-5 w-5"></i>
+                            Reset
+                        </a>
+                    @endif
+
+                </div>
+
+            </form>
+
+        </div>
+
+        <div class="overflow-x-auto">
+
+            <table class="min-w-full">
+
+                <thead class="bg-slate-50">
+                    <tr class="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        <th class="px-6 py-4">Pinjaman</th>
+                        <th class="px-6 py-4">Anggota</th>
+                        <th class="px-6 py-4">Angsuran</th>
+                        <th class="px-6 py-4">Jatuh Tempo</th>
+                        <th class="px-6 py-4 text-right">Tagihan</th>
+                        <th class="px-6 py-4 text-right">Sisa</th>
+                        <th class="px-6 py-4">Status</th>
+                        <th class="px-6 py-4 text-right">Aksi</th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-slate-100">
+
+                    @forelse ($installments as $installment)
+
+                        @php
+                            $statusClass = match ($installment->status) {
+                                'paid' => 'bg-emerald-100 text-emerald-700',
+                                'partial' => 'bg-blue-100 text-blue-700',
+                                'overdue' => 'bg-red-100 text-red-700',
+                                default => 'bg-slate-100 text-slate-600',
+                            };
+                        @endphp
+
+                        <tr class="hover:bg-slate-50">
+
+                            <td class="whitespace-nowrap px-6 py-4">
+                                <a
+                                    href="{{ route('loans.show', $installment->loan) }}"
+                                    class="text-sm font-semibold text-slate-800 hover:text-emerald-600">
+
+                                    {{ $installment->loan->loan_number }}
+                                </a>
+                            </td>
+
+                            <td class="px-6 py-4">
+                                <p class="text-sm font-semibold text-slate-800">
+                                    {{ $installment->loan->member->name }}
+                                </p>
+
+                                <p class="mt-1 text-xs text-slate-400">
+                                    {{ $installment->loan->member->member_number }}
+                                </p>
+                            </td>
+
+                            <td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-700">
+                                Ke-{{ $installment->installment_number }}
+                            </td>
+
+                            <td class="whitespace-nowrap px-6 py-4">
+                                <p class="text-sm text-slate-700">
+                                    {{ $installment->due_date->translatedFormat('d M Y') }}
+                                </p>
+
+                                @if ($installment->status === 'overdue')
+                                    <p class="mt-1 text-xs font-semibold text-red-600">
+                                        Lewat {{ $installment->due_date->diffInDays(today()) }} hari
+                                    </p>
+                                @endif
+                            </td>
+
+                            <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-semibold text-slate-800">
+                                Rp{{ number_format($installment->total_amount, 0, ',', '.') }}
+                            </td>
+
+                            <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-bold text-amber-600">
+                                Rp{{ number_format($installment->remaining_amount, 0, ',', '.') }}
+                            </td>
+
+                            <td class="px-6 py-4">
+                                <span class="inline-flex rounded-full px-3 py-1.5 text-xs font-semibold {{ $statusClass }}">
+                                    {{ $installment->status_label }}
+                                </span>
+                            </td>
+
+                            <td class="px-6 py-4">
+                                <div class="flex justify-end">
+
+                                    @if (
+                                        $installment->loan->status === 'active'
+                                        && $installment->status !== 'paid'
+                                    )
+                                        <a
+                                            href="{{ route('installments.pay', $installment) }}"
+                                            class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700">
+
+                                            <i data-lucide="hand-coins" class="h-4 w-4"></i>
+                                            Bayar
+                                        </a>
+                                    @else
+                                        <span class="text-xs font-semibold text-emerald-600">
+                                            Selesai
+                                        </span>
+                                    @endif
+
+                                </div>
+                            </td>
+
+                        </tr>
+
+                    @empty
+
+                        <tr>
+                            <td colspan="8" class="px-6 py-16 text-center">
+
+                                <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                                    <i data-lucide="calendar-check-2" class="h-9 w-9"></i>
+                                </div>
+
+                                <h4 class="mt-5 font-semibold text-slate-700">
+                                    Belum ada jadwal angsuran
+                                </h4>
+
+                                <p class="mt-2 text-sm text-slate-500">
+                                    Setujui pengajuan pinjaman untuk membuat jadwal angsuran.
+                                </p>
+
+                            </td>
+                        </tr>
+
+                    @endforelse
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        @if ($installments->hasPages())
+            <div class="border-t border-slate-200 px-6 py-5">
+                {{ $installments->links() }}
+            </div>
+        @endif
+
+    </section>
+
+    <section class="mt-7 rounded-3xl border border-slate-200 bg-white shadow-sm">
+
+        <div class="border-b border-slate-200 p-6">
+            <h3 class="font-bold text-slate-900">
+                Pembayaran Terbaru
+            </h3>
+
+            <p class="mt-1 text-xs text-slate-500">
+                Sepuluh transaksi angsuran terakhir.
+            </p>
+        </div>
+
+        <div class="overflow-x-auto">
+
+            <table class="min-w-full">
+
+                <thead class="bg-slate-50">
+                    <tr class="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        <th class="px-6 py-4">Kuitansi</th>
+                        <th class="px-6 py-4">Anggota</th>
+                        <th class="px-6 py-4">Pinjaman</th>
+                        <th class="px-6 py-4">Tanggal</th>
+                        <th class="px-6 py-4">Metode</th>
+                        <th class="px-6 py-4 text-right">Nominal</th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-slate-100">
+
+                    @forelse ($recentPayments as $payment)
+
+                        <tr class="hover:bg-slate-50">
+
+                            <td class="px-6 py-4">
+                                <a
+                                    href="{{ route('installment-payments.show', $payment) }}"
+                                    class="text-sm font-semibold text-emerald-600 hover:text-emerald-700">
+
+                                    {{ $payment->payment_code }}
+                                </a>
+                            </td>
+
+                            <td class="px-6 py-4">
+                                <p class="text-sm font-semibold text-slate-800">
+                                    {{ $payment->installment->loan->member->name }}
+                                </p>
+
+                                <p class="mt-1 text-xs text-slate-400">
+                                    {{ $payment->installment->loan->member->member_number }}
+                                </p>
+                            </td>
+
+                            <td class="px-6 py-4">
+                                <p class="text-sm text-slate-700">
+                                    {{ $payment->installment->loan->loan_number }}
+                                </p>
+
+                                <p class="mt-1 text-xs text-slate-400">
+                                    Angsuran ke-{{ $payment->installment->installment_number }}
+                                </p>
+                            </td>
+
+                            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                                {{ $payment->payment_date->translatedFormat('d M Y') }}
+                            </td>
+
+                            <td class="px-6 py-4 text-sm text-slate-700">
+                                {{ $payment->payment_method_label }}
+                            </td>
+
+                            <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-bold text-emerald-600">
+                                Rp{{ number_format($payment->amount, 0, ',', '.') }}
+                            </td>
+
+                        </tr>
+
+                    @empty
+
+                        <tr>
+                            <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-500">
+                                Belum ada pembayaran angsuran.
+                            </td>
+                        </tr>
+
+                    @endforelse
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+@endsection
+
+
+===== resources/views/loans/show.blade.php =====
+@extends('layouts.app')
+
+@section('title', 'Detail Pembiayaan')
+@section('page-title', 'Detail Pembiayaan')
+@section('page-description', 'Informasi pembiayaan dan riwayat angsuran anggota')
+
+@section('content')
+
+    @php
+        $isLegacy = (bool) ($loan->is_legacy ?? false);
+
+        $remainingAmount = $isLegacy
+            ? (float) ($loan->outstanding_principal ?? 0)
+            : (float) ($summary['remaining_amount'] ?? 0);
+
+        $principalLabel = $isLegacy
+            ? 'Pokok Pembiayaan'
+            : 'Pokok Pinjaman';
+
+        $profitLabel = $isLegacy
+            ? 'Bagi Hasil'
+            : 'Total Bunga';
+
+        $totalLabel = $isLegacy
+            ? 'Sisa Pembiayaan'
+            : 'Total Tagihan';
+
+        $fourthLabel = $isLegacy
+            ? 'Biaya Administrasi'
+            : 'Angsuran Bulanan';
+
+        $fourthAmount = $isLegacy
+            ? (float) ($loan->administration_paid ?? 0)
+            : (float) ($loan->monthly_installment ?? 0);
+    @endphp
+
+    <div class="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+
+        <a
+            href="{{ route('loans.index') }}"
+            class="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-emerald-600">
+
+            <i data-lucide="arrow-left" class="h-5 w-5"></i>
+            Kembali ke daftar pembiayaan
+        </a>
+
+        <div class="flex flex-col gap-3 sm:flex-row">
+
+            @if (
+                $loan->import_batch_id
+                && \Illuminate\Support\Facades\Route::has(
+                    'data-imports.reconciliation'
+                )
+            )
+
+                <a
+                    href="{{ route(
+                        'data-imports.reconciliation',
+                        $loan->import_batch_id
+                    ) }}"
+                    class="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-5 py-3 text-sm font-semibold text-blue-600 hover:bg-blue-50">
+
+                    <i data-lucide="scale" class="h-5 w-5"></i>
+                    Rekonsiliasi Import
+                </a>
+
+            @endif
+
+            @if ($loan->status === 'pending')
+
+                <form
+                    action="{{ route('loans.cancel', $loan) }}"
+                    method="POST"
+                    id="cancel-loan-form">
+
+                    @csrf
+
+                    <button
+                        type="button"
+                        onclick="confirmCancelLoan()"
+                        class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 hover:bg-red-100">
+
+                        <i data-lucide="circle-x" class="h-5 w-5"></i>
+                        Batalkan Pengajuan
+                    </button>
+
+                </form>
+
+            @endif
+
+        </div>
+
+    </div>
+
+    <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+
+        <div class="relative bg-gradient-to-br from-emerald-600 to-teal-800 p-7 text-white">
+
+            <div class="relative z-10 flex flex-col justify-between gap-5 md:flex-row md:items-center">
+
+                <div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+
+                        <p class="text-sm text-emerald-100">
+                            Nomor pembiayaan
+                        </p>
+
+                        @if ($isLegacy)
+
+                            <span class="rounded-full bg-amber-400 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-950">
+                                Data Migrasi
+                            </span>
+
+                        @endif
+
+                    </div>
+
+                    <h1 class="mt-2 text-2xl font-bold">
+                        {{ $loan->loan_number ?: 'Nomor belum tersedia' }}
+                    </h1>
+
+                    <p class="mt-2 text-sm text-emerald-100">
+                        {{ $loan->member?->member_number ?: 'Nomor anggota belum tersedia' }}
+                        —
+                        {{ $loan->member?->name ?: 'Anggota tidak ditemukan' }}
+                    </p>
+
+                </div>
+
+                @php
+                    $statusClass = match ($loan->status) {
+                        'pending' => 'bg-amber-400 text-amber-950',
+                        'active' => 'bg-blue-300 text-blue-950',
+                        'paid' => 'bg-white text-emerald-700',
+                        'rejected' => 'bg-red-400 text-red-950',
+                        'cancelled' => 'bg-slate-200 text-slate-700',
+                        default => 'bg-white/20 text-white',
+                    };
+                @endphp
+
+                <span class="w-fit rounded-full px-4 py-2 text-xs font-bold {{ $statusClass }}">
+                    {{ $loan->status_label }}
+                </span>
+
+            </div>
+
+            <div class="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-white/10"></div>
+
+        </div>
+
+        <div class="p-6 md:p-8">
+
+            @if ($isLegacy)
+
+                <div class="mb-7 rounded-3xl border border-amber-200 bg-amber-50 p-5">
+
+                    <div class="flex gap-4">
+
+                        <div class="h-fit rounded-2xl bg-amber-100 p-3 text-amber-600">
+                            <i data-lucide="archive" class="h-6 w-6"></i>
+                        </div>
+
+                        <div>
+
+                            <h3 class="font-bold text-amber-900">
+                                Pembiayaan lama hasil migrasi
+                            </h3>
+
+                            <p class="mt-2 text-sm leading-7 text-amber-700">
+                                Data ini berasal dari rekapan Excel client.
+                                Tenor, tanggal akad, dan jadwal pembiayaan asli
+                                belum tersedia secara lengkap sehingga tidak
+                                boleh dianggap sebagai akad baru.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            @endif
+
+            <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+
+                <article class="rounded-2xl border border-slate-200 p-5">
+
+                    <p class="text-xs font-medium text-slate-500">
+                        {{ $principalLabel }}
+                    </p>
+
+                    <p class="mt-2 text-xl font-bold text-slate-900">
+                        Rp{{ number_format(
+                            (float) ($loan->principal_amount ?? 0),
+                            0,
+                            ',',
+                            '.'
+                        ) }}
+                    </p>
+
+                </article>
+
+                <article class="rounded-2xl border border-slate-200 p-5">
+
+                    <p class="text-xs font-medium text-slate-500">
+                        {{ $profitLabel }}
+                    </p>
+
+                    <p class="mt-2 text-xl font-bold text-amber-600">
+                        Rp{{ number_format(
+                            (float) ($loan->interest_amount ?? 0),
+                            0,
+                            ',',
+                            '.'
+                        ) }}
+                    </p>
+
+                </article>
+
+                <article class="rounded-2xl border border-slate-200 p-5">
+
+                    <p class="text-xs font-medium text-slate-500">
+                        {{ $totalLabel }}
+                    </p>
+
+                    <p class="mt-2 text-xl font-bold text-blue-600">
+
+                        @if ($isLegacy)
+
+                            Rp{{ number_format(
+                                (float) ($loan->outstanding_principal ?? 0),
+                                0,
+                                ',',
+                                '.'
+                            ) }}
+
+                        @else
+
+                            Rp{{ number_format(
+                                (float) ($loan->total_amount ?? 0),
+                                0,
+                                ',',
+                                '.'
+                            ) }}
+
+                        @endif
+
+                    </p>
+
+                </article>
+
+                <article class="rounded-2xl border border-slate-200 p-5">
+
+                    <p class="text-xs font-medium text-slate-500">
+                        {{ $fourthLabel }}
+                    </p>
+
+                    <p class="mt-2 text-xl font-bold text-emerald-600">
+                        Rp{{ number_format(
+                            $fourthAmount,
+                            0,
+                            ',',
+                            '.'
+                        ) }}
+                    </p>
+
+                </article>
+
+            </div>
+
+            @if ($isLegacy)
+
+                <section class="mt-7 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+
+                    <article class="rounded-2xl bg-slate-50 p-5">
+
+                        <p class="text-xs font-medium text-slate-500">
+                            Saldo Awal Pembiayaan
+                        </p>
+
+                        <p class="mt-2 text-lg font-bold text-slate-800">
+                            Rp{{ number_format(
+                                (float) ($loan->opening_principal ?? 0),
+                                0,
+                                ',',
+                                '.'
+                            ) }}
+                        </p>
+
+                    </article>
+
+                    <article class="rounded-2xl bg-slate-50 p-5">
+
+                        <p class="text-xs font-medium text-slate-500">
+                            Pencairan Selama Import
+                        </p>
+
+                        <p class="mt-2 text-lg font-bold text-blue-700">
+                            Rp{{ number_format(
+                                (float) ($loan->disbursed_during_import ?? 0),
+                                0,
+                                ',',
+                                '.'
+                            ) }}
+                        </p>
+
+                    </article>
+
+                    <article class="rounded-2xl bg-slate-50 p-5">
+
+                        <p class="text-xs font-medium text-slate-500">
+                            Bagi Hasil Dibayar
+                        </p>
+
+                        <p class="mt-2 text-lg font-bold text-amber-700">
+                            Rp{{ number_format(
+                                (float) ($loan->profit_share_paid ?? 0),
+                                0,
+                                ',',
+                                '.'
+                            ) }}
+                        </p>
+
+                    </article>
+
+                    <article class="rounded-2xl bg-slate-50 p-5">
+
+                        <p class="text-xs font-medium text-slate-500">
+                            Nomor Sumber Excel
+                        </p>
+
+                        <p class="mt-2 text-lg font-bold text-slate-800">
+                            {{ $loan->source_number ?? '-' }}
+                        </p>
+
+                    </article>
+
+                </section>
+
+            @endif
+
+            <div class="mt-7 grid gap-6 lg:grid-cols-2">
+
+                <article class="rounded-3xl border border-slate-200 p-6">
+
+                    <h3 class="font-bold text-slate-900">
+                        {{ $isLegacy
+                            ? 'Informasi Migrasi'
+                            : 'Informasi Pengajuan' }}
+                    </h3>
+
+                    <dl class="mt-6 space-y-4">
+
+                        <div class="flex justify-between gap-4 border-b border-slate-100 pb-4">
+
+                            <dt class="text-sm text-slate-500">
+                                {{ $isLegacy
+                                    ? 'Tanggal awal data'
+                                    : 'Tanggal pengajuan' }}
+                            </dt>
+
+                            <dd class="text-right text-sm font-semibold text-slate-800">
+                                {{ $loan->application_date?->translatedFormat('d F Y')
+                                    ?? 'Belum tersedia' }}
+                            </dd>
+
+                        </div>
+
+                        @if ($isLegacy)
+
+                            <div class="flex justify-between gap-4 border-b border-slate-100 pb-4">
+
+                                <dt class="text-sm text-slate-500">
+                                    Jenis data
+                                </dt>
+
+                                <dd class="text-right text-sm font-semibold text-amber-700">
+                                    Pembiayaan lama/migrasi
+                                </dd>
+
+                            </div>
+
+                            <div class="flex justify-between gap-4 border-b border-slate-100 pb-4">
+
+                                <dt class="text-sm text-slate-500">
+                                    Batch import
+                                </dt>
+
+                                <dd class="text-right text-sm font-semibold text-slate-800">
+                                    #{{ $loan->import_batch_id }}
+                                </dd>
+
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+
+                                <dt class="text-sm text-slate-500">
+                                    Diproses oleh
+                                </dt>
+
+                                <dd class="text-right text-sm font-semibold text-slate-800">
+                                    {{ $loan->creator?->name ?? 'Sistem' }}
+                                </dd>
+
+                            </div>
+
+                        @else
+
+                            <div class="flex justify-between gap-4 border-b border-slate-100 pb-4">
+
+                                <dt class="text-sm text-slate-500">
+                                    Bunga flat
+                                </dt>
+
+                                <dd class="text-right text-sm font-semibold text-slate-800">
+                                    {{ number_format(
+                                        (float) ($loan->interest_rate ?? 0),
+                                        2,
+                                        ',',
+                                        '.'
+                                    ) }}% per bulan
+                                </dd>
+
+                            </div>
+
+                            <div class="flex justify-between gap-4 border-b border-slate-100 pb-4">
+
+                                <dt class="text-sm text-slate-500">
+                                    Tenor
+                                </dt>
+
+                                <dd class="text-right text-sm font-semibold text-slate-800">
+                                    {{ $loan->tenor_months }} bulan
+                                </dd>
+
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+
+                                <dt class="text-sm text-slate-500">
+                                    Dibuat oleh
+                                </dt>
+
+                                <dd class="text-right text-sm font-semibold text-slate-800">
+                                    {{ $loan->creator?->name ?? 'Sistem' }}
+                                </dd>
+
+                            </div>
+
+                        @endif
+
+                    </dl>
+
+                </article>
+
+                <article class="rounded-3xl border border-slate-200 p-6">
+
+                    <h3 class="font-bold text-slate-900">
+                        {{ $isLegacy
+                            ? 'Keterangan Pembiayaan'
+                            : 'Tujuan Pinjaman' }}
+                    </h3>
+
+                    <p class="mt-5 whitespace-pre-line text-sm leading-7 text-slate-700">
+                        {{ $loan->purpose ?: 'Keterangan belum tersedia.' }}
+                    </p>
+
+                    @if ($loan->notes)
+
+                        <div class="mt-5 rounded-2xl bg-slate-50 p-4">
+
+                            <p class="text-xs font-semibold text-slate-500">
+                                Catatan
+                            </p>
+
+                            <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">
+                                {{ $loan->notes }}
+                            </p>
+
+                        </div>
+
+                    @endif
+
+                </article>
+
+            </div>
+
+            @if ($loan->status === 'pending')
+
+                <section class="mt-7 grid gap-6 lg:grid-cols-2">
+
+                    <article class="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
+
+                        <div class="flex items-center gap-3">
+
+                            <div class="rounded-2xl bg-emerald-100 p-3 text-emerald-600">
+                                <i data-lucide="badge-check" class="h-6 w-6"></i>
+                            </div>
+
+                            <div>
+
+                                <h3 class="font-bold text-emerald-900">
+                                    Setujui Pembiayaan
+                                </h3>
+
+                                <p class="mt-1 text-xs text-emerald-700">
+                                    Jadwal angsuran akan dibuat otomatis.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                        <form
+                            action="{{ route('loans.approve', $loan) }}"
+                            method="POST"
+                            id="approve-loan-form"
+                            class="mt-6">
+
+                            @csrf
+
+                            <label
+                                for="start_date"
+                                class="mb-2 block text-sm font-semibold text-emerald-900">
+
+                                Tanggal pencairan
+                            </label>
+
+                            <input
+                                type="date"
+                                name="start_date"
+                                id="start_date"
+                                value="{{ old(
+                                    'start_date',
+                                    now()->format('Y-m-d')
+                                ) }}"
+                                required
+                                class="w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500">
+
+                            <button
+                                type="button"
+                                onclick="confirmApproveLoan()"
+                                class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700">
+
+                                <i data-lucide="check" class="h-5 w-5"></i>
+                                Setujui Pembiayaan
+                            </button>
+
+                        </form>
+
+                    </article>
+
+                    <article class="rounded-3xl border border-red-200 bg-red-50 p-6">
+
+                        <div class="flex items-center gap-3">
+
+                            <div class="rounded-2xl bg-red-100 p-3 text-red-600">
+                                <i data-lucide="circle-x" class="h-6 w-6"></i>
+                            </div>
+
+                            <div>
+
+                                <h3 class="font-bold text-red-900">
+                                    Tolak Pembiayaan
+                                </h3>
+
+                                <p class="mt-1 text-xs text-red-700">
+                                    Masukkan alasan penolakan pengajuan.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                        <form
+                            action="{{ route('loans.reject', $loan) }}"
+                            method="POST"
+                            id="reject-loan-form"
+                            class="mt-6">
+
+                            @csrf
+
+                            <textarea
+                                name="rejection_reason"
+                                id="rejection_reason"
+                                rows="4"
+                                required
+                                placeholder="Masukkan alasan penolakan"
+                                class="w-full resize-none rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm outline-none focus:border-red-500">{{ old('rejection_reason') }}</textarea>
+
+                            <button
+                                type="button"
+                                onclick="confirmRejectLoan()"
+                                class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white hover:bg-red-700">
+
+                                <i data-lucide="x" class="h-5 w-5"></i>
+                                Tolak Pembiayaan
+                            </button>
+
+                        </form>
+
+                    </article>
+
+                </section>
+
+            @endif
+
+            @if (
+                $loan->status === 'rejected'
+                && $loan->rejection_reason
+            )
+
+                <section class="mt-7 rounded-3xl border border-red-200 bg-red-50 p-6">
+
+                    <h3 class="font-bold text-red-800">
+                        Alasan Penolakan
+                    </h3>
+
+                    <p class="mt-3 whitespace-pre-line text-sm leading-7 text-red-700">
+                        {{ $loan->rejection_reason }}
+                    </p>
+
+                </section>
+
+            @endif
+
+            @if ($loan->installments->isNotEmpty())
+
+                <section class="mt-7 overflow-hidden rounded-3xl border border-slate-200">
+
+                    <div class="flex flex-col justify-between gap-4 border-b border-slate-200 p-6 sm:flex-row sm:items-center">
+
+                        <div>
+
+                            <h3 class="font-bold text-slate-900">
+                                {{ $isLegacy
+                                    ? 'Riwayat Angsuran Migrasi'
+                                    : 'Jadwal Angsuran' }}
+                            </h3>
+
+                            <p class="mt-1 text-xs text-slate-500">
+
+                                @if ($isLegacy)
+
+                                    Riwayat pembayaran yang terbaca dari
+                                    rekapan Excel client.
+
+                                @else
+
+                                    Jadwal pembayaran selama
+                                    {{ $loan->tenor_months }} bulan.
+
+                                @endif
+
+                            </p>
+
+                        </div>
+
+                        <div class="rounded-2xl bg-emerald-50 px-4 py-3 text-right">
+
+                            <p class="text-xs text-emerald-600">
+                                Sisa pembiayaan
+                            </p>
+
+                            <p class="mt-1 font-bold text-emerald-700">
+                                Rp{{ number_format(
+                                    $remainingAmount,
+                                    0,
+                                    ',',
+                                    '.'
+                                ) }}
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                    <div class="overflow-x-auto">
+
+                        <table class="min-w-full">
+
+                            <thead class="bg-slate-50">
+
+                                <tr class="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+
+                                    <th class="px-6 py-4">
+                                        Angsuran
+                                    </th>
+
+                                    <th class="px-6 py-4">
+                                        {{ $isLegacy
+                                            ? 'Periode'
+                                            : 'Jatuh Tempo' }}
+                                    </th>
+
+                                    <th class="px-6 py-4 text-right">
+                                        Pokok
+                                    </th>
+
+                                    <th class="px-6 py-4 text-right">
+                                        {{ $isLegacy
+                                            ? 'Bagi Hasil'
+                                            : 'Bunga' }}
+                                    </th>
+
+                                    <th class="px-6 py-4 text-right">
+                                        Total
+                                    </th>
+
+                                    <th class="px-6 py-4">
+                                        Status
+                                    </th>
+
+                                    <th class="px-6 py-4 text-right">
+                                        Aksi
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody class="divide-y divide-slate-100">
+
+                                @foreach ($loan->installments as $installment)
+
+                                    @php
+                                        $displayStatus = $installment->status;
+
+                                        if (
+                                            in_array(
+                                                $installment->status,
+                                                ['unpaid', 'partial'],
+                                                true
+                                            )
+                                            && $installment->due_date
+                                            && $installment->due_date->isPast()
+                                        ) {
+                                            $displayStatus = 'overdue';
+                                        }
+
+                                        $installmentClass = match ($displayStatus) {
+                                            'paid' => 'bg-emerald-100 text-emerald-700',
+                                            'partial' => 'bg-blue-100 text-blue-700',
+                                            'overdue' => 'bg-red-100 text-red-700',
+                                            default => 'bg-slate-100 text-slate-600',
+                                        };
+
+                                        $installmentLabel = match ($displayStatus) {
+                                            'paid' => 'Lunas',
+                                            'partial' => 'Sebagian',
+                                            'overdue' => 'Terlambat',
+                                            default => 'Belum Dibayar',
+                                        };
+                                    @endphp
+
+                                    <tr class="hover:bg-slate-50">
+
+                                        <td class="px-6 py-4 text-sm font-semibold text-slate-800">
+                                            Ke-{{ $installment->installment_number }}
+                                        </td>
+
+                                        <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                                            {{ $installment->due_date?->translatedFormat('d M Y')
+                                                ?? 'Belum tersedia' }}
+                                        </td>
+
+                                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm text-slate-700">
+                                            Rp{{ number_format(
+                                                (float) $installment->principal_amount,
+                                                0,
+                                                ',',
+                                                '.'
+                                            ) }}
+                                        </td>
+
+                                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm text-slate-700">
+                                            Rp{{ number_format(
+                                                (float) $installment->interest_amount,
+                                                0,
+                                                ',',
+                                                '.'
+                                            ) }}
+                                        </td>
+
+                                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-bold text-slate-900">
+                                            Rp{{ number_format(
+                                                (float) $installment->total_amount,
+                                                0,
+                                                ',',
+                                                '.'
+                                            ) }}
+                                        </td>
+
+                                        <td class="px-6 py-4">
+
+                                            <span class="rounded-full px-3 py-1.5 text-xs font-semibold {{ $installmentClass }}">
+                                                {{ $installmentLabel }}
+                                            </span>
+
+                                        </td>
+
+                                        <td class="px-6 py-4">
+
+                                            <div class="flex justify-end">
+
+                                                @if (
+                                                    !$isLegacy
+                                                    && $loan->status === 'active'
+                                                    && $installment->status !== 'paid'
+                                                )
+
+                                                    <a
+                                                        href="{{ route(
+                                                            'installments.pay',
+                                                            $installment
+                                                        ) }}"
+                                                        class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700">
+
+                                                        <i data-lucide="hand-coins" class="h-4 w-4"></i>
+                                                        Bayar
+                                                    </a>
+
+                                                @elseif ($installment->payments->isNotEmpty())
+
+                                                    <a
+                                                        href="{{ route(
+                                                            'installment-payments.show',
+                                                            $installment->payments->first()
+                                                        ) }}"
+                                                        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+
+                                                        <i data-lucide="receipt-text" class="h-4 w-4"></i>
+                                                        Kuitansi
+                                                    </a>
+
+                                                @endif
+
+                                            </div>
+
+                                        </td>
+
+                                    </tr>
+
+                                @endforeach
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </section>
+
+            @else
+
+                <section class="mt-7 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+
+                    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm">
+                        <i data-lucide="calendar-x" class="h-7 w-7"></i>
+                    </div>
+
+                    <h3 class="mt-4 font-semibold text-slate-700">
+                        Belum ada data angsuran
+                    </h3>
+
+                    <p class="mt-2 text-sm text-slate-500">
+                        Jadwal atau riwayat angsuran belum tersedia untuk pembiayaan ini.
+                    </p>
+
+                </section>
+
+            @endif
+
+        </div>
+
+    </section>
+
+@endsection
+
+@push('scripts')
+
+    <script>
+        function confirmApproveLoan() {
+            const startDate = document
+                .getElementById('start_date')
+                ?.value;
+
+            if (!startDate) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Tanggal belum diisi',
+                    text: 'Silakan pilih tanggal pencairan pembiayaan.',
+                    confirmButtonColor: '#059669',
+                });
+
+                return;
+            }
+
+            Swal.fire({
+                icon: 'question',
+                title: 'Setujui pembiayaan?',
+                text: 'Jadwal angsuran akan dibuat secara otomatis.',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, setujui',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#059669',
+                cancelButtonColor: '#64748b',
+                reverseButtons: true,
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document
+                        .getElementById('approve-loan-form')
+                        .submit();
+                }
+            });
+        }
+
+        function confirmRejectLoan() {
+            const reason = document
+                .getElementById('rejection_reason')
+                ?.value
+                .trim();
+
+            if (!reason) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Alasan belum diisi',
+                    text: 'Silakan masukkan alasan penolakan.',
+                    confirmButtonColor: '#dc2626',
+                });
+
+                return;
+            }
+
+            Swal.fire({
+                icon: 'warning',
+                title: 'Tolak pembiayaan?',
+                text: 'Pengajuan akan ditandai sebagai ditolak.',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, tolak',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                reverseButtons: true,
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document
+                        .getElementById('reject-loan-form')
+                        .submit();
+                }
+            });
+        }
+
+        function confirmCancelLoan() {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Batalkan pengajuan?',
+                text: 'Pengajuan pembiayaan akan dibatalkan.',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, batalkan',
+                cancelButtonText: 'Kembali',
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                reverseButtons: true,
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document
+                        .getElementById('cancel-loan-form')
+                        .submit();
+                }
+            });
+        }
+    </script>
+
+@endpush
+
+
+===== routes/web.php =====
+<?php
+
+use App\Http\Controllers\AccountingAccountController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\CashImportController;
+use App\Http\Controllers\CashTransactionController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DataImportController;
+use App\Http\Controllers\FinancialStatementController;
+use App\Http\Controllers\InstallmentController;
+use App\Http\Controllers\InstallmentPaymentController;
+use App\Http\Controllers\JournalEntryController;
+use App\Http\Controllers\LoanController;
+use App\Http\Controllers\MemberController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SavingTransactionController;
+use App\Http\Controllers\SavingTypeController;
+use App\Http\Controllers\SettingController;
+use App\Http\Controllers\ShuImportController;
+use App\Http\Controllers\ShuPaymentController;
+use App\Http\Controllers\ShuPeriodController;
+use App\Http\Controllers\ShuReportController;
+use App\Http\Controllers\TrialBalanceController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/', function () {
+    return auth()->check()
+        ? redirect()->route('dashboard')
+        : redirect()->route('login');
+});
+
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthenticatedSessionController::class, 'create'])
+        ->name('login');
+
+    Route::post('/login', [AuthenticatedSessionController::class, 'store'])
+        ->name('login.store');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->name('dashboard');
+    Route::resource('saving-types', SavingTypeController::class)
+        ->except('show');
+
+    Route::get('/savings/balance', [
+        SavingTransactionController::class,
+        'balance',
+    ])->name('savings.balance');
+
+    Route::get('/savings', [
+        SavingTransactionController::class,
+        'index',
+    ])->name('savings.index');
+
+    Route::get('/loans', [
+        LoanController::class,
+        'index',
+    ])->name('loans.index');
+
+    Route::get('/loans/create', [
+        LoanController::class,
+        'create',
+    ])->name('loans.create');
+
+    Route::post('/loans', [
+        LoanController::class,
+        'store',
+    ])->name('loans.store');
+
+    Route::get('/loans/{loan}', [
+        LoanController::class,
+        'show',
+    ])->name('loans.show');
+
+    Route::post('/loans/{loan}/approve', [
+        LoanController::class,
+        'approve',
+    ])->name('loans.approve');
+
+    Route::post('/loans/{loan}/reject', [
+        LoanController::class,
+        'reject',
+    ])->name('loans.reject');
+
+    Route::post('/loans/{loan}/cancel', [
+        LoanController::class,
+        'cancel',
+    ])->name('loans.cancel');
+
+    Route::get('/savings/create', [
+        SavingTransactionController::class,
+        'create',
+    ])->name('savings.create');
+    Route::get('/installments', [
+        InstallmentController::class,
+        'index',
+    ])->name('installments.index');
+
+    Route::get('/installments/{loanInstallment}/pay', [
+        InstallmentController::class,
+        'create',
+    ])->name('installments.pay');
+
+    Route::get('/cash-transactions', [
+        CashTransactionController::class,
+        'index',
+    ])->name('cash-transactions.index');
+
+    Route::get('/cash-transactions/create', [
+        CashTransactionController::class,
+        'create',
+    ])->name('cash-transactions.create');
+
+    Route::get('/data-imports', [
+        DataImportController::class,
+        'index',
+    ])->name('data-imports.index');
+
+    Route::post('/data-imports', [
+        DataImportController::class,
+        'store',
+    ])->name('data-imports.store');
+
+    Route::post(
+        '/data-imports/{importBatch}/process-members-savings',
+        [
+            DataImportController::class,
+            'processMembersSavings',
+        ]
+    )->name('data-imports.process-members-savings');
+
+    Route::get('/cash-imports', [
+        CashImportController::class,
+        'index',
+    ])->name('cash-imports.index');
+
+    Route::post('/cash-imports', [
+        CashImportController::class,
+        'store',
+    ])->name('cash-imports.store');
+
+    Route::get('/cash-imports/{cashImportBatch}', [
+        CashImportController::class,
+        'show',
+    ])->name('cash-imports.show');
+
+    Route::get('/shu-periods', [
+        ShuPeriodController::class,
+        'index',
+    ])->name('shu-periods.index');
+
+    Route::post(
+        '/shu-periods/{shuPeriod}/imports',
+        [
+            ShuImportController::class,
+            'store',
+        ]
+    )->name('shu-imports.store');
+
+    Route::get(
+        '/shu-imports/{shuImportBatch}',
+        [
+            ShuImportController::class,
+            'show',
+        ]
+    )->name('shu-imports.show');
+
+    Route::put(
+        '/shu-imports/{shuImportBatch}/rows',
+        [
+            ShuImportController::class,
+            'updateRows',
+        ]
+    )->name('shu-imports.rows.update');
+
+    Route::post(
+        '/shu-imports/{shuImportBatch}/process',
+        [
+            ShuImportController::class,
+            'process',
+        ]
+    )->name('shu-imports.process');
+
+    Route::delete(
+        '/shu-imports/{shuImportBatch}',
+        [
+            ShuImportController::class,
+            'destroy',
+        ]
+    )->name('shu-imports.destroy');
+
+    Route::post(
+        '/shu-periods/{shuPeriod}/approve',
+        [
+            ShuPeriodController::class,
+            'approve',
+        ]
+    )->name('shu-periods.approve');
+
+    Route::get(
+        '/shu-payments/{shuPayment}',
+        [
+            ShuPaymentController::class,
+            'show',
+        ]
+    )->name('shu-payments.show');
+
+    Route::get(
+        '/shu-payments',
+        [
+            ShuPaymentController::class,
+            'index',
+        ]
+    )->name('shu-payments.index');
+
+    Route::post(
+        '/shu-periods/{shuPeriod}/payments/bulk',
+        [
+            ShuPaymentController::class,
+            'bulkStore',
+        ]
+    )->name('shu-payments.bulk-store');
+
+    Route::post(
+        '/shu-allocations/{shuMemberAllocation}/payments',
+        [
+            ShuPaymentController::class,
+            'store',
+        ]
+    )->name('shu-payments.store');
+
+    Route::get(
+        '/shu-payments/{shuPayment}/receipt',
+        [
+            ShuPaymentController::class,
+            'receipt',
+        ]
+    )->name('shu-payments.receipt');
+
+    Route::get(
+        '/shu-periods/{shuPeriod}/report',
+        [
+            ShuReportController::class,
+            'show',
+        ]
+    )->name('shu-reports.show');
+
+    Route::get(
+        '/shu-periods/{shuPeriod}/report/print',
+        [
+            ShuReportController::class,
+            'print',
+        ]
+    )->name('shu-reports.print');
+
+    Route::get(
+        '/accounting-accounts',
+        [
+            AccountingAccountController::class,
+            'index',
+        ]
+    )->name('accounting-accounts.index');
+
+    Route::get(
+        '/journal-entries',
+        [
+            JournalEntryController::class,
+            'index',
+        ]
+    )->name('journal-entries.index');
+
+    Route::get(
+        '/journal-entries/create',
+        [
+            JournalEntryController::class,
+            'create',
+        ]
+    )->name('journal-entries.create');
+
+    Route::get(
+        '/trial-balance',
+        [
+            TrialBalanceController::class,
+            'index',
+        ]
+    )->name('trial-balance.index');
+
+    Route::get(
+        '/trial-balance/print',
+        [
+            TrialBalanceController::class,
+            'print',
+        ]
+    )->name('trial-balance.print');
+
+    Route::get(
+        '/trial-balance/export',
+        [
+            TrialBalanceController::class,
+            'export',
+        ]
+    )->name('trial-balance.export');
+
+    Route::post(
+        '/journal-entries',
+        [
+            JournalEntryController::class,
+            'store',
+        ]
+    )->name('journal-entries.store');
+
+    Route::get(
+        '/journal-entries/{journalEntry}',
+        [
+            JournalEntryController::class,
+            'show',
+        ]
+    )->name('journal-entries.show');
+
+    Route::post(
+        '/journal-entries/{journalEntry}/post',
+        [
+            JournalEntryController::class,
+            'post',
+        ]
+    )->name('journal-entries.post');
+
+    Route::post(
+        '/journal-entries/{journalEntry}/reverse',
+        [
+            JournalEntryController::class,
+            'reverse',
+        ]
+    )->name('journal-entries.reverse');
+
+    Route::delete(
+        '/journal-entries/{journalEntry}',
+        [
+            JournalEntryController::class,
+            'destroy',
+        ]
+    )->name('journal-entries.destroy');
+
+    Route::get(
+        '/financial-statements',
+        [
+            FinancialStatementController::class,
+            'index',
+        ]
+    )->name('financial-statements.index');
+
+    Route::get(
+        '/financial-statements/{financialStatementPeriod}',
+        [
+            FinancialStatementController::class,
+            'show',
+        ]
+    )->name('financial-statements.show');
+
+    Route::get(
+        '/shu-periods/{shuPeriod}/report/export',
+        [
+            ShuReportController::class,
+            'export',
+        ]
+    )->name('shu-reports.export');
+
+    Route::get(
+        '/shu-payments/{shuPayment}',
+        [
+            ShuPaymentController::class,
+            'show',
+        ]
+    )->name('shu-payments.show');
+
+    Route::get(
+        '/shu-payments/{shuPayment}/receipt',
+        [
+            ShuPaymentController::class,
+            'receipt',
+        ]
+    )->name('shu-payments.receipt');
+
+    Route::post(
+        '/shu-allocations/{shuMemberAllocation}/payments',
+        [
+            ShuPaymentController::class,
+            'store',
+        ]
+    )->name('shu-payments.store');
+
+    Route::post('/shu-periods', [
+        ShuPeriodController::class,
+        'store',
+    ])->name('shu-periods.store');
+
+    Route::get('/shu-periods/{shuPeriod}', [
+        ShuPeriodController::class,
+        'show',
+    ])->name('shu-periods.show');
+
+    Route::delete('/shu-periods/{shuPeriod}', [
+        ShuPeriodController::class,
+        'destroy',
+    ])->name('shu-periods.destroy');
+
+    Route::post(
+        '/cash-imports/{cashImportBatch}/process',
+        [
+            CashImportController::class,
+            'process',
+        ]
+    )->name('cash-imports.process');
+
+    Route::delete(
+        '/cash-imports/{cashImportBatch}',
+        [
+            CashImportController::class,
+            'destroy',
+        ]
+    )->name('cash-imports.destroy');
+
+    Route::get(
+        '/data-imports/{importBatch}/reconciliation',
+        [
+            DataImportController::class,
+            'reconciliation',
+        ]
+    )->name('data-imports.reconciliation');
+    Route::get('/data-imports/{importBatch}', [
+        DataImportController::class,
+        'show',
+    ])->name('data-imports.show');
+
+    Route::post(
+        '/data-imports/{importBatch}/process-financing',
+        [
+            DataImportController::class,
+            'processFinancing',
+        ]
+    )->name('data-imports.process-financing');
+
+    Route::put('/data-imports/{importBatch}/mappings', [
+        DataImportController::class,
+        'updateMappings',
+    ])->name('data-imports.mappings.update');
+
+    Route::delete('/data-imports/{importBatch}', [
+        DataImportController::class,
+        'destroy',
+    ])->name('data-imports.destroy');
+
+    Route::get('/reports', [
+        ReportController::class,
+        'index',
+    ])->name('reports.index');
+    Route::get('/settings', [
+        SettingController::class,
+        'edit',
+    ])->name('settings.edit');
+
+    Route::put('/settings', [
+        SettingController::class,
+        'update',
+    ])->name('settings.update');
+    Route::get('/reports/print', [
+        ReportController::class,
+        'print',
+    ])->name('reports.print');
+
+    Route::get('/reports/export', [
+        ReportController::class,
+        'export',
+    ])->name('reports.export');
+
+    Route::post('/cash-transactions', [
+        CashTransactionController::class,
+        'store',
+    ])->name('cash-transactions.store');
+
+    Route::post('/installments/{loanInstallment}/payments', [
+        InstallmentController::class,
+        'store',
+    ])->name('installments.payments.store');
+
+    Route::get('/installment-payments/{installmentPayment}', [
+        InstallmentPaymentController::class,
+        'show',
+    ])->name('installment-payments.show');
+    Route::post('/savings', [
+        SavingTransactionController::class,
+        'store',
+    ])->name('savings.store');
+    Route::resource('members', MemberController::class);
+    Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
+        ->name('logout');
+});
+
+
+===== app/Http/Controllers/InstallmentController.php =====
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\InstallmentPayment;
+use App\Models\Loan;
+use App\Models\LoanInstallment;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+
+class InstallmentController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $this->refreshOverdueStatuses();
+
+        $search = trim((string) $request->input('search'));
+        $status = $request->input('status');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+
+        $installments = LoanInstallment::query()
+            ->with([
+                'loan:id,loan_number,member_id,status',
+                'loan.member:id,member_number,name,photo',
+            ])
+            ->whereHas('loan', function ($query) {
+                $query->whereIn('status', [
+                    'active',
+                    'paid',
+                ]);
+            })
+            ->when($search, function ($query) use ($search) {
+                $query->whereHas('loan', function ($loanQuery) use ($search) {
+                    $loanQuery
+                        ->where('loan_number', 'like', "%{$search}%")
+                        ->orWhereHas(
+                            'member',
+                            function ($memberQuery) use ($search) {
+                                $memberQuery
+                                    ->where('name', 'like', "%{$search}%")
+                                    ->orWhere(
+                                        'member_number',
+                                        'like',
+                                        "%{$search}%"
+                                    );
+                            }
+                        );
+                });
+            })
+            ->when(
+                in_array($status, [
+                    'unpaid',
+                    'partial',
+                    'paid',
+                    'overdue',
+                ], true),
+                fn ($query) => $query->where('status', $status)
+            )
+            ->when(
+                $dateFrom,
+                fn ($query) => $query->whereDate(
+                    'due_date',
+                    '>=',
+                    $dateFrom
+                )
+            )
+            ->when(
+                $dateTo,
+                fn ($query) => $query->whereDate(
+                    'due_date',
+                    '<=',
+                    $dateTo
+                )
+            )
+            ->orderByRaw("
+                CASE
+                    WHEN status = 'overdue' THEN 1
+                    WHEN status = 'unpaid' THEN 2
+                    WHEN status = 'partial' THEN 3
+                    ELSE 4
+                END
+            ")
+            ->orderBy('due_date')
+            ->paginate(15)
+            ->withQueryString();
+
+        $outstanding = LoanInstallment::query()
+            ->whereHas('loan', function ($query) {
+                $query->where('status', 'active');
+            })
+            ->selectRaw(
+                'COALESCE(SUM(total_amount - paid_amount), 0) AS total'
+            )
+            ->value('total');
+
+        $statistics = [
+            'outstanding' => (float) $outstanding,
+
+            'overdue' => LoanInstallment::query()
+                ->where('status', 'overdue')
+                ->whereHas('loan', function ($query) {
+                    $query->where('status', 'active');
+                })
+                ->count(),
+
+            'due_this_month' => LoanInstallment::query()
+                ->whereHas('loan', function ($query) {
+                    $query->where('status', 'active');
+                })
+                ->whereIn('status', [
+                    'unpaid',
+                    'partial',
+                    'overdue',
+                ])
+                ->whereYear('due_date', now()->year)
+                ->whereMonth('due_date', now()->month)
+                ->count(),
+
+            'paid_this_month' => InstallmentPayment::query()
+                ->whereYear('payment_date', now()->year)
+                ->whereMonth('payment_date', now()->month)
+                ->sum('amount'),
+        ];
+
+        $recentPayments = InstallmentPayment::query()
+            ->with([
+                'installment:id,loan_id,installment_number',
+                'installment.loan:id,loan_number,member_id',
+                'installment.loan.member:id,member_number,name',
+                'user:id,name',
+            ])
+            ->latest('payment_date')
+            ->latest('id')
+            ->limit(10)
+            ->get();
+
+        return view('installments.index', compact(
+            'installments',
+            'statistics',
+            'recentPayments',
+            'search',
+            'status',
+            'dateFrom',
+            'dateTo'
+        ));
+    }
+
+    public function create(
+        LoanInstallment $loanInstallment
+    ): View|RedirectResponse {
+        $this->refreshOverdueStatuses();
+
+        $loanInstallment->load([
+            'loan.member',
+            'payments.user',
+        ]);
+
+        if ($loanInstallment->loan->status !== 'active') {
+            return redirect()
+                ->route('loans.show', $loanInstallment->loan)
+                ->with(
+                    'error',
+                    'Pembayaran hanya dapat dilakukan untuk pinjaman aktif.'
+                );
+        }
+
+        if ($loanInstallment->status === 'paid') {
+            return redirect()
+                ->route('loans.show', $loanInstallment->loan)
+                ->with(
+                    'error',
+                    'Angsuran ini sudah lunas.'
+                );
+        }
+
+        return view('installments.pay', compact(
+            'loanInstallment'
+        ));
+    }
+
+    public function store(
+        Request $request,
+        LoanInstallment $loanInstallment
+    ): RedirectResponse {
+        $data = $request->validate([
+            'payment_date' => [
+                'required',
+                'date',
+                'before_or_equal:today',
+            ],
+            'amount' => [
+                'required',
+                'numeric',
+                'min:1',
+            ],
+            'payment_method' => [
+                'required',
+                Rule::in([
+                    'cash',
+                    'transfer',
+                    'other',
+                ]),
+            ],
+            'reference_number' => [
+                'nullable',
+                'required_if:payment_method,transfer',
+                'string',
+                'max:150',
+            ],
+            'notes' => [
+                'nullable',
+                'string',
+                'max:1000',
+            ],
+        ], [
+            'payment_date.required' => 'Tanggal pembayaran wajib diisi.',
+            'payment_date.before_or_equal' => 'Tanggal pembayaran tidak boleh melebihi hari ini.',
+            'amount.required' => 'Nominal pembayaran wajib diisi.',
+            'amount.numeric' => 'Nominal pembayaran harus berupa angka.',
+            'amount.min' => 'Nominal pembayaran minimal Rp1.',
+            'payment_method.required' => 'Metode pembayaran wajib dipilih.',
+            'reference_number.required_if' => 'Nomor referensi transfer wajib diisi.',
+        ]);
+
+        $payment = DB::transaction(
+            function () use (
+                $loanInstallment,
+                $data
+            ): InstallmentPayment {
+                $installment = LoanInstallment::query()
+                    ->with('loan')
+                    ->lockForUpdate()
+                    ->findOrFail($loanInstallment->id);
+
+                if ($installment->loan->status !== 'active') {
+                    throw ValidationException::withMessages([
+                        'amount' => 'Pinjaman sudah tidak aktif.',
+                    ]);
+                }
+
+                $remainingAmount = max(
+                    (float) $installment->total_amount
+                        - (float) $installment->paid_amount,
+                    0
+                );
+
+                if ($remainingAmount <= 0) {
+                    throw ValidationException::withMessages([
+                        'amount' => 'Angsuran ini sudah lunas.',
+                    ]);
+                }
+
+                $paymentAmount = round(
+                    (float) $data['amount'],
+                    2
+                );
+
+                if ($paymentAmount > $remainingAmount) {
+                    throw ValidationException::withMessages([
+                        'amount' => 'Pembayaran melebihi sisa tagihan. Sisa tagihan Rp'
+                            . number_format(
+                                $remainingAmount,
+                                0,
+                                ',',
+                                '.'
+                            )
+                            . '.',
+                    ]);
+                }
+
+                $newPaidAmount = round(
+                    (float) $installment->paid_amount
+                        + $paymentAmount,
+                    2
+                );
+
+                $remainingAfter = max(
+                    round(
+                        (float) $installment->total_amount
+                            - $newPaidAmount,
+                        2
+                    ),
+                    0
+                );
+
+                $payment = InstallmentPayment::create([
+                    'loan_installment_id' => $installment->id,
+                    'user_id' => auth()->id(),
+                    'payment_date' => $data['payment_date'],
+                    'amount' => $paymentAmount,
+                    'remaining_after' => $remainingAfter,
+                    'payment_method' => $data['payment_method'],
+                    'reference_number' => $data[
+                        'reference_number'
+                    ] ?? null,
+                    'notes' => $data['notes'] ?? null,
+                ]);
+
+                $payment->update([
+                    'payment_code' => sprintf(
+                        'ANG-%s-%06d',
+                        now()->format('Ymd'),
+                        $payment->id
+                    ),
+                ]);
+
+                if ($remainingAfter <= 0) {
+                    $installmentStatus = 'paid';
+                } elseif ($installment->due_date->isPast()) {
+                    $installmentStatus = 'overdue';
+                } else {
+                    $installmentStatus = 'partial';
+                }
+
+                $installment->update([
+                    'paid_amount' => $newPaidAmount,
+                    'paid_at' => $remainingAfter <= 0
+                        ? now()
+                        : null,
+                    'status' => $installmentStatus,
+                ]);
+
+                $hasUnpaidInstallments = $installment
+                    ->loan
+                    ->installments()
+                    ->where('status', '!=', 'paid')
+                    ->exists();
+
+                if (!$hasUnpaidInstallments) {
+                    $installment->loan->update([
+                        'status' => 'paid',
+                    ]);
+                }
+
+                return $payment;
+            }
+        );
+
+        return redirect()
+            ->route('installment-payments.show', $payment)
+            ->with(
+                'success',
+                'Pembayaran angsuran berhasil disimpan.'
+            );
+    }
+
+    private function refreshOverdueStatuses(): void
+    {
+        LoanInstallment::query()
+            ->whereIn('status', [
+                'unpaid',
+                'partial',
+            ])
+            ->whereDate('due_date', '<', today())
+            ->whereHas('loan', function ($query) {
+                $query->where('status', 'active');
+            })
+            ->update([
+                'status' => 'overdue',
+            ]);
+    }
+}
+
+
+===== app/Http/Controllers/InstallmentPaymentController.php =====
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\InstallmentPayment;
+use Illuminate\View\View;
+
+class InstallmentPaymentController extends Controller
+{
+    public function show(
+        InstallmentPayment $installmentPayment
+    ): View {
+        $installmentPayment->load([
+            'installment.loan.member',
+            'user:id,name',
+        ]);
+
+        return view(
+            'installment-payments.show',
+            compact('installmentPayment')
+        );
+    }
+}
+
+
+===== database/migrations/2026_07_15_000957_create_loans_table.php =====
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('loans', function (Blueprint $table) {
+            $table->id();
+
+            $table->string('loan_number')
+                ->nullable()
+                ->unique();
+
+            $table->foreignId('member_id')
+                ->constrained()
+                ->restrictOnDelete();
+
+            $table->foreignId('created_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('approved_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->date('application_date');
+
+            $table->decimal('principal_amount', 15, 2);
+            $table->decimal('interest_rate', 5, 2)->default(0);
+            $table->unsignedSmallInteger('tenor_months');
+
+            $table->decimal('interest_amount', 15, 2)->default(0);
+            $table->decimal('total_amount', 15, 2)->default(0);
+            $table->decimal('monthly_installment', 15, 2)->default(0);
+
+            $table->date('start_date')->nullable();
+            $table->date('maturity_date')->nullable();
+
+            $table->text('purpose');
+            $table->text('notes')->nullable();
+
+            $table->enum('status', [
+                'pending',
+                'active',
+                'rejected',
+                'paid',
+                'cancelled',
+            ])->default('pending');
+
+            $table->timestamp('approved_at')->nullable();
+            $table->text('rejection_reason')->nullable();
+
+            $table->timestamps();
+
+            $table->index([
+                'member_id',
+                'status',
+                'application_date',
+            ]);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('loans');
+    }
+};
+
+
+===== database/migrations/2026_07_15_001946_create_installment_payments_table.php =====
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('installment_payments', function (Blueprint $table) {
+            $table->id();
+
+            $table->string('payment_code')
+                ->nullable()
+                ->unique();
+
+            $table->foreignId('loan_installment_id')
+                ->constrained('loan_installments')
+                ->restrictOnDelete();
+
+            $table->foreignId('user_id')
+                ->nullable()
+                ->constrained()
+                ->nullOnDelete();
+
+            $table->date('payment_date');
+
+            $table->decimal('amount', 15, 2);
+
+            $table->decimal('remaining_after', 15, 2)
+                ->default(0);
+
+            $table->enum('payment_method', [
+                'cash',
+                'transfer',
+                'other',
+            ])->default('cash');
+
+            $table->string('reference_number')
+                ->nullable();
+
+            $table->text('notes')
+                ->nullable();
+
+            $table->timestamps();
+
+            $table->index([
+                'payment_date',
+                'payment_method',
+            ]);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('installment_payments');
+    }
+};

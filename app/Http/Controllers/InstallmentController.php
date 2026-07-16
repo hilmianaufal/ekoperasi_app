@@ -59,11 +59,11 @@ class InstallmentController extends Controller
                     'paid',
                     'overdue',
                 ], true),
-                fn ($query) => $query->where('status', $status)
+                fn($query) => $query->where('status', $status)
             )
             ->when(
                 $dateFrom,
-                fn ($query) => $query->whereDate(
+                fn($query) => $query->whereDate(
                     'due_date',
                     '>=',
                     $dateFrom
@@ -71,7 +71,7 @@ class InstallmentController extends Controller
             )
             ->when(
                 $dateTo,
-                fn ($query) => $query->whereDate(
+                fn($query) => $query->whereDate(
                     'due_date',
                     '<=',
                     $dateTo
@@ -89,14 +89,27 @@ class InstallmentController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $outstanding = LoanInstallment::query()
+        $scheduledOutstanding = LoanInstallment::query()
             ->whereHas('loan', function ($query) {
-                $query->where('status', 'active');
+                $query
+                    ->where('status', 'active')
+                    ->where('is_legacy', false);
             })
             ->selectRaw(
                 'COALESCE(SUM(total_amount - paid_amount), 0) AS total'
             )
             ->value('total');
+
+        $legacyOutstanding = Loan::query()
+            ->where('status', 'active')
+            ->where('is_legacy', true)
+            ->sum('outstanding_principal');
+
+        $outstanding = round(
+            (float) $scheduledOutstanding
+                + (float) $legacyOutstanding,
+            2
+        );
 
         $statistics = [
             'outstanding' => (float) $outstanding,
@@ -295,9 +308,7 @@ class InstallmentController extends Controller
                     'amount' => $paymentAmount,
                     'remaining_after' => $remainingAfter,
                     'payment_method' => $data['payment_method'],
-                    'reference_number' => $data[
-                        'reference_number'
-                    ] ?? null,
+                    'reference_number' => $data['reference_number'] ?? null,
                     'notes' => $data['notes'] ?? null,
                 ]);
 
