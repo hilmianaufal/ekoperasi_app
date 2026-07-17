@@ -1,4 +1,3 @@
-cat > app/Http/Controllers/CashTransactionController.php <<'PHP'
 <?php
 
 namespace App\Http\Controllers;
@@ -368,4 +367,3 @@ class CashTransactionController extends Controller
             );
     }
 }
-PHP

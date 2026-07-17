@@ -13,21 +13,13 @@
             ? (float) ($loan->outstanding_principal ?? 0)
             : (float) ($summary['remaining_amount'] ?? 0);
 
-        $principalLabel = $isLegacy
-            ? 'Pokok Pembiayaan'
-            : 'Pokok Pinjaman';
+        $principalLabel = $isLegacy ? 'Pokok Pembiayaan' : 'Pokok Pinjaman';
 
-        $profitLabel = $isLegacy
-            ? 'Bagi Hasil'
-            : 'Total Bunga';
+        $profitLabel = $isLegacy ? 'Bagi Hasil' : 'Total Bunga';
 
-        $totalLabel = $isLegacy
-            ? 'Sisa Pembiayaan'
-            : 'Total Tagihan';
+        $totalLabel = $isLegacy ? 'Sisa Pembiayaan' : 'Total Tagihan';
 
-        $fourthLabel = $isLegacy
-            ? 'Biaya Administrasi'
-            : 'Angsuran Bulanan';
+        $fourthLabel = $isLegacy ? 'Biaya Administrasi' : 'Angsuran Bulanan';
 
         $fourthAmount = $isLegacy
             ? (float) ($loan->administration_paid ?? 0)
@@ -36,8 +28,7 @@
 
     <div class="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 
-        <a
-            href="{{ route('loans.index') }}"
+        <a href="{{ route('loans.index') }}"
             class="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-emerald-600">
 
             <i data-lucide="arrow-left" class="h-5 w-5"></i>
@@ -46,38 +37,21 @@
 
         <div class="flex flex-col gap-3 sm:flex-row">
 
-            @if (
-                $loan->import_batch_id
-                && \Illuminate\Support\Facades\Route::has(
-                    'data-imports.reconciliation'
-                )
-            )
-
-                <a
-                    href="{{ route(
-                        'data-imports.reconciliation',
-                        $loan->import_batch_id
-                    ) }}"
+            @if ($loan->import_batch_id && \Illuminate\Support\Facades\Route::has('data-imports.reconciliation'))
+                <a href="{{ route('data-imports.reconciliation', $loan->import_batch_id) }}"
                     class="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-5 py-3 text-sm font-semibold text-blue-600 hover:bg-blue-50">
 
                     <i data-lucide="scale" class="h-5 w-5"></i>
                     Rekonsiliasi Import
                 </a>
-
             @endif
 
             @if ($loan->status === 'pending')
-
-                <form
-                    action="{{ route('loans.cancel', $loan) }}"
-                    method="POST"
-                    id="cancel-loan-form">
+                <form action="{{ route('loans.cancel', $loan) }}" method="POST" id="cancel-loan-form">
 
                     @csrf
 
-                    <button
-                        type="button"
-                        onclick="confirmCancelLoan()"
+                    <button type="button" onclick="confirmCancelLoan()"
                         class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 hover:bg-red-100">
 
                         <i data-lucide="circle-x" class="h-5 w-5"></i>
@@ -85,7 +59,6 @@
                     </button>
 
                 </form>
-
             @endif
 
         </div>
@@ -107,11 +80,10 @@
                         </p>
 
                         @if ($isLegacy)
-
-                            <span class="rounded-full bg-amber-400 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-950">
+                            <span
+                                class="rounded-full bg-amber-400 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-950">
                                 Data Migrasi
                             </span>
-
                         @endif
 
                     </div>
@@ -152,7 +124,6 @@
         <div class="p-6 md:p-8">
 
             @if ($isLegacy)
-
                 <div class="mb-7 rounded-3xl border border-amber-200 bg-amber-50 p-5">
 
                     <div class="flex gap-4">
@@ -179,7 +150,6 @@
                     </div>
 
                 </div>
-
             @endif
 
             <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -191,12 +161,7 @@
                     </p>
 
                     <p class="mt-2 text-xl font-bold text-slate-900">
-                        Rp{{ number_format(
-                            (float) ($loan->principal_amount ?? 0),
-                            0,
-                            ',',
-                            '.'
-                        ) }}
+                        Rp{{ number_format((float) ($loan->principal_amount ?? 0), 0, ',', '.') }}
                     </p>
 
                 </article>
@@ -208,12 +173,7 @@
                     </p>
 
                     <p class="mt-2 text-xl font-bold text-amber-600">
-                        Rp{{ number_format(
-                            (float) ($loan->interest_amount ?? 0),
-                            0,
-                            ',',
-                            '.'
-                        ) }}
+                        Rp{{ number_format((float) ($loan->interest_amount ?? 0), 0, ',', '.') }}
                     </p>
 
                 </article>
@@ -227,23 +187,9 @@
                     <p class="mt-2 text-xl font-bold text-blue-600">
 
                         @if ($isLegacy)
-
-                            Rp{{ number_format(
-                                (float) ($loan->outstanding_principal ?? 0),
-                                0,
-                                ',',
-                                '.'
-                            ) }}
-
+                            Rp{{ number_format((float) ($loan->outstanding_principal ?? 0), 0, ',', '.') }}
                         @else
-
-                            Rp{{ number_format(
-                                (float) ($loan->total_amount ?? 0),
-                                0,
-                                ',',
-                                '.'
-                            ) }}
-
+                            Rp{{ number_format((float) ($loan->total_amount ?? 0), 0, ',', '.') }}
                         @endif
 
                     </p>
@@ -257,12 +203,7 @@
                     </p>
 
                     <p class="mt-2 text-xl font-bold text-emerald-600">
-                        Rp{{ number_format(
-                            $fourthAmount,
-                            0,
-                            ',',
-                            '.'
-                        ) }}
+                        Rp{{ number_format($fourthAmount, 0, ',', '.') }}
                     </p>
 
                 </article>
@@ -270,7 +211,6 @@
             </div>
 
             @if ($isLegacy)
-
                 <section class="mt-7 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
 
                     <article class="rounded-2xl bg-slate-50 p-5">
@@ -280,12 +220,7 @@
                         </p>
 
                         <p class="mt-2 text-lg font-bold text-slate-800">
-                            Rp{{ number_format(
-                                (float) ($loan->opening_principal ?? 0),
-                                0,
-                                ',',
-                                '.'
-                            ) }}
+                            Rp{{ number_format((float) ($loan->opening_principal ?? 0), 0, ',', '.') }}
                         </p>
 
                     </article>
@@ -297,12 +232,7 @@
                         </p>
 
                         <p class="mt-2 text-lg font-bold text-blue-700">
-                            Rp{{ number_format(
-                                (float) ($loan->disbursed_during_import ?? 0),
-                                0,
-                                ',',
-                                '.'
-                            ) }}
+                            Rp{{ number_format((float) ($loan->disbursed_during_import ?? 0), 0, ',', '.') }}
                         </p>
 
                     </article>
@@ -314,12 +244,7 @@
                         </p>
 
                         <p class="mt-2 text-lg font-bold text-amber-700">
-                            Rp{{ number_format(
-                                (float) ($loan->profit_share_paid ?? 0),
-                                0,
-                                ',',
-                                '.'
-                            ) }}
+                            Rp{{ number_format((float) ($loan->profit_share_paid ?? 0), 0, ',', '.') }}
                         </p>
 
                     </article>
@@ -337,7 +262,6 @@
                     </article>
 
                 </section>
-
             @endif
 
             <div class="mt-7 grid gap-6 lg:grid-cols-2">
@@ -345,9 +269,7 @@
                 <article class="rounded-3xl border border-slate-200 p-6">
 
                     <h3 class="font-bold text-slate-900">
-                        {{ $isLegacy
-                            ? 'Informasi Migrasi'
-                            : 'Informasi Pengajuan' }}
+                        {{ $isLegacy ? 'Informasi Migrasi' : 'Informasi Pengajuan' }}
                     </h3>
 
                     <dl class="mt-6 space-y-4">
@@ -355,20 +277,16 @@
                         <div class="flex justify-between gap-4 border-b border-slate-100 pb-4">
 
                             <dt class="text-sm text-slate-500">
-                                {{ $isLegacy
-                                    ? 'Tanggal awal data'
-                                    : 'Tanggal pengajuan' }}
+                                {{ $isLegacy ? 'Tanggal awal data' : 'Tanggal pengajuan' }}
                             </dt>
 
                             <dd class="text-right text-sm font-semibold text-slate-800">
-                                {{ $loan->application_date?->translatedFormat('d F Y')
-                                    ?? 'Belum tersedia' }}
+                                {{ $loan->application_date?->translatedFormat('d F Y') ?? 'Belum tersedia' }}
                             </dd>
 
                         </div>
 
                         @if ($isLegacy)
-
                             <div class="flex justify-between gap-4 border-b border-slate-100 pb-4">
 
                                 <dt class="text-sm text-slate-500">
@@ -404,9 +322,7 @@
                                 </dd>
 
                             </div>
-
                         @else
-
                             <div class="flex justify-between gap-4 border-b border-slate-100 pb-4">
 
                                 <dt class="text-sm text-slate-500">
@@ -414,12 +330,8 @@
                                 </dt>
 
                                 <dd class="text-right text-sm font-semibold text-slate-800">
-                                    {{ number_format(
-                                        (float) ($loan->interest_rate ?? 0),
-                                        2,
-                                        ',',
-                                        '.'
-                                    ) }}% per bulan
+                                    {{ number_format((float) ($loan->interest_rate ?? 0), 2, ',', '.') }}%
+                                    per bulan
                                 </dd>
 
                             </div>
@@ -447,7 +359,6 @@
                                 </dd>
 
                             </div>
-
                         @endif
 
                     </dl>
@@ -457,9 +368,7 @@
                 <article class="rounded-3xl border border-slate-200 p-6">
 
                     <h3 class="font-bold text-slate-900">
-                        {{ $isLegacy
-                            ? 'Keterangan Pembiayaan'
-                            : 'Tujuan Pinjaman' }}
+                        {{ $isLegacy ? 'Keterangan Pembiayaan' : 'Tujuan Pinjaman' }}
                     </h3>
 
                     <p class="mt-5 whitespace-pre-line text-sm leading-7 text-slate-700">
@@ -467,7 +376,6 @@
                     </p>
 
                     @if ($loan->notes)
-
                         <div class="mt-5 rounded-2xl bg-slate-50 p-4">
 
                             <p class="text-xs font-semibold text-slate-500">
@@ -479,7 +387,6 @@
                             </p>
 
                         </div>
-
                     @endif
 
                 </article>
@@ -487,7 +394,6 @@
             </div>
 
             @if ($loan->status === 'pending')
-
                 <section class="mt-7 grid gap-6 lg:grid-cols-2">
 
                     <article class="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
@@ -512,35 +418,22 @@
 
                         </div>
 
-                        <form
-                            action="{{ route('loans.approve', $loan) }}"
-                            method="POST"
-                            id="approve-loan-form"
+                        <form action="{{ route('loans.approve', $loan) }}" method="POST" id="approve-loan-form"
                             class="mt-6">
 
                             @csrf
 
-                            <label
-                                for="start_date"
-                                class="mb-2 block text-sm font-semibold text-emerald-900">
+                            <label for="start_date" class="mb-2 block text-sm font-semibold text-emerald-900">
 
                                 Tanggal pencairan
                             </label>
 
-                            <input
-                                type="date"
-                                name="start_date"
-                                id="start_date"
-                                value="{{ old(
-                                    'start_date',
-                                    now()->format('Y-m-d')
-                                ) }}"
+                            <input type="date" name="start_date" id="start_date"
+                                value="{{ old('start_date', now()->format('Y-m-d')) }}"
                                 required
                                 class="w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500">
 
-                            <button
-                                type="button"
-                                onclick="confirmApproveLoan()"
+                            <button type="button" onclick="confirmApproveLoan()"
                                 class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700">
 
                                 <i data-lucide="check" class="h-5 w-5"></i>
@@ -573,25 +466,16 @@
 
                         </div>
 
-                        <form
-                            action="{{ route('loans.reject', $loan) }}"
-                            method="POST"
-                            id="reject-loan-form"
+                        <form action="{{ route('loans.reject', $loan) }}" method="POST" id="reject-loan-form"
                             class="mt-6">
 
                             @csrf
 
-                            <textarea
-                                name="rejection_reason"
-                                id="rejection_reason"
-                                rows="4"
-                                required
+                            <textarea name="rejection_reason" id="rejection_reason" rows="4" required
                                 placeholder="Masukkan alasan penolakan"
                                 class="w-full resize-none rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm outline-none focus:border-red-500">{{ old('rejection_reason') }}</textarea>
 
-                            <button
-                                type="button"
-                                onclick="confirmRejectLoan()"
+                            <button type="button" onclick="confirmRejectLoan()"
                                 class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white hover:bg-red-700">
 
                                 <i data-lucide="x" class="h-5 w-5"></i>
@@ -603,14 +487,9 @@
                     </article>
 
                 </section>
-
             @endif
 
-            @if (
-                $loan->status === 'rejected'
-                && $loan->rejection_reason
-            )
-
+            @if ($loan->status === 'rejected' && $loan->rejection_reason)
                 <section class="mt-7 rounded-3xl border border-red-200 bg-red-50 p-6">
 
                     <h3 class="font-bold text-red-800">
@@ -622,35 +501,29 @@
                     </p>
 
                 </section>
-
             @endif
 
             @if ($loan->installments->isNotEmpty())
 
                 <section class="mt-7 overflow-hidden rounded-3xl border border-slate-200">
 
-                    <div class="flex flex-col justify-between gap-4 border-b border-slate-200 p-6 sm:flex-row sm:items-center">
+                    <div
+                        class="flex flex-col justify-between gap-4 border-b border-slate-200 p-6 sm:flex-row sm:items-center">
 
                         <div>
 
                             <h3 class="font-bold text-slate-900">
-                                {{ $isLegacy
-                                    ? 'Riwayat Angsuran Migrasi'
-                                    : 'Jadwal Angsuran' }}
+                                {{ $isLegacy ? 'Riwayat Angsuran Migrasi' : 'Jadwal Angsuran' }}
                             </h3>
 
                             <p class="mt-1 text-xs text-slate-500">
 
                                 @if ($isLegacy)
-
                                     Riwayat pembayaran yang terbaca dari
                                     rekapan Excel client.
-
                                 @else
-
                                     Jadwal pembayaran selama
                                     {{ $loan->tenor_months }} bulan.
-
                                 @endif
 
                             </p>
@@ -664,12 +537,7 @@
                             </p>
 
                             <p class="mt-1 font-bold text-emerald-700">
-                                Rp{{ number_format(
-                                    $remainingAmount,
-                                    0,
-                                    ',',
-                                    '.'
-                                ) }}
+                                Rp{{ number_format($remainingAmount, 0, ',', '.') }}
                             </p>
 
                         </div>
@@ -689,9 +557,7 @@
                                     </th>
 
                                     <th class="px-6 py-4">
-                                        {{ $isLegacy
-                                            ? 'Periode'
-                                            : 'Jatuh Tempo' }}
+                                        {{ $isLegacy ? 'Periode' : 'Jatuh Tempo' }}
                                     </th>
 
                                     <th class="px-6 py-4 text-right">
@@ -699,9 +565,7 @@
                                     </th>
 
                                     <th class="px-6 py-4 text-right">
-                                        {{ $isLegacy
-                                            ? 'Bagi Hasil'
-                                            : 'Bunga' }}
+                                        {{ $isLegacy ? 'Bagi Hasil' : 'Bunga' }}
                                     </th>
 
                                     <th class="px-6 py-4 text-right">
@@ -723,18 +587,13 @@
                             <tbody class="divide-y divide-slate-100">
 
                                 @foreach ($loan->installments as $installment)
-
                                     @php
                                         $displayStatus = $installment->status;
 
                                         if (
-                                            in_array(
-                                                $installment->status,
-                                                ['unpaid', 'partial'],
-                                                true
-                                            )
-                                            && $installment->due_date
-                                            && $installment->due_date->isPast()
+                                            in_array($installment->status, ['unpaid', 'partial'], true) &&
+                                            $installment->due_date &&
+                                            $installment->due_date->isPast()
                                         ) {
                                             $displayStatus = 'overdue';
                                         }
@@ -761,40 +620,26 @@
                                         </td>
 
                                         <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
-                                            {{ $installment->due_date?->translatedFormat('d M Y')
-                                                ?? 'Belum tersedia' }}
+                                            {{ $installment->due_date?->translatedFormat('d M Y') ?? 'Belum tersedia' }}
                                         </td>
 
                                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm text-slate-700">
-                                            Rp{{ number_format(
-                                                (float) $installment->principal_amount,
-                                                0,
-                                                ',',
-                                                '.'
-                                            ) }}
+                                            Rp{{ number_format((float) $installment->principal_amount, 0, ',', '.') }}
                                         </td>
 
                                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm text-slate-700">
-                                            Rp{{ number_format(
-                                                (float) $installment->interest_amount,
-                                                0,
-                                                ',',
-                                                '.'
-                                            ) }}
+                                            Rp{{ number_format((float) $installment->interest_amount, 0, ',', '.') }}
                                         </td>
 
-                                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-bold text-slate-900">
-                                            Rp{{ number_format(
-                                                (float) $installment->total_amount,
-                                                0,
-                                                ',',
-                                                '.'
-                                            ) }}
+                                        <td
+                                            class="whitespace-nowrap px-6 py-4 text-right text-sm font-bold text-slate-900">
+                                            Rp{{ number_format((float) $installment->total_amount, 0, ',', '.') }}
                                         </td>
 
                                         <td class="px-6 py-4">
 
-                                            <span class="rounded-full px-3 py-1.5 text-xs font-semibold {{ $installmentClass }}">
+                                            <span
+                                                class="rounded-full px-3 py-1.5 text-xs font-semibold {{ $installmentClass }}">
                                                 {{ $installmentLabel }}
                                             </span>
 
@@ -804,36 +649,30 @@
 
                                             <div class="flex justify-end">
 
-                                                @if (
-                                                    !$isLegacy
-                                                    && $loan->status === 'active'
-                                                    && $installment->status !== 'paid'
-                                                )
-
-                                                    <a
-                                                        href="{{ route(
-                                                            'installments.pay',
-                                                            $installment
-                                                        ) }}"
+                                                @if (!$isLegacy && $loan->status === 'active' && $installment->status !== 'paid')
+                                                    <a href="{{ route('installments.pay', $installment) }}"
                                                         class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700">
 
                                                         <i data-lucide="hand-coins" class="h-4 w-4"></i>
                                                         Bayar
                                                     </a>
-
                                                 @elseif ($installment->payments->isNotEmpty())
-
-                                                    <a
-                                                        href="{{ route(
-                                                            'installment-payments.show',
-                                                            $installment->payments->first()
-                                                        ) }}"
+                                                    <a href="{{ route('installment-payments.show', $installment->payments->first()) }}"
                                                         class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
 
                                                         <i data-lucide="receipt-text" class="h-4 w-4"></i>
                                                         Kuitansi
                                                     </a>
+                                                @endif
 
+                                                @if (in_array($loan->status, ['pending', 'active'], true))
+                                                    <a href="{{ route('loans.edit', $loan) }}"
+                                                        class="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100">
+
+                                                        <i data-lucide="pencil-line" class="h-5 w-5"></i>
+
+                                                        Edit Pinjaman
+                                                    </a>
                                                 @endif
 
                                             </div>
@@ -841,7 +680,6 @@
                                         </td>
 
                                     </tr>
-
                                 @endforeach
 
                             </tbody>
@@ -851,12 +689,11 @@
                     </div>
 
                 </section>
-
             @else
-
                 <section class="mt-7 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
 
-                    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm">
+                    <div
+                        class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm">
                         <i data-lucide="calendar-x" class="h-7 w-7"></i>
                     </div>
 
@@ -879,7 +716,6 @@
 @endsection
 
 @push('scripts')
-
     <script>
         function confirmApproveLoan() {
             const startDate = document
@@ -972,5 +808,4 @@
             });
         }
     </script>
-
 @endpush

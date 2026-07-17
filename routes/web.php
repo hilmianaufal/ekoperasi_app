@@ -306,6 +306,26 @@ Route::middleware('auth')->group(function () {
         'create',
     ])->name('expenses.create');
 
+    Route::get('/installment-payments/{installmentPayment}/edit', [
+        InstallmentPaymentController::class,
+        'edit',
+    ])->name('installment-payments.edit');
+
+    Route::put('/installment-payments/{installmentPayment}', [
+        InstallmentPaymentController::class,
+        'update',
+    ])->name('installment-payments.update');
+
+    Route::get('/loans/{loan}/edit', [
+        LoanController::class,
+        'edit',
+    ])->name('loans.edit');
+
+    Route::put('/loans/{loan}', [
+        LoanController::class,
+        'update',
+    ])->name('loans.update');
+
     Route::post('/expenses', [
         ExpenseController::class,
         'store',
