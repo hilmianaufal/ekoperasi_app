@@ -6,6 +6,7 @@ use App\Http\Controllers\CashImportController;
 use App\Http\Controllers\CashTransactionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataImportController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinancialStatementController;
 use App\Http\Controllers\InstallmentController;
 use App\Http\Controllers\InstallmentPaymentController;
@@ -294,6 +295,21 @@ Route::middleware('auth')->group(function () {
             'print',
         ]
     )->name('trial-balance.print');
+
+    Route::get('/expenses', [
+        ExpenseController::class,
+        'index',
+    ])->name('expenses.index');
+
+    Route::get('/expenses/create', [
+        ExpenseController::class,
+        'create',
+    ])->name('expenses.create');
+
+    Route::post('/expenses', [
+        ExpenseController::class,
+        'store',
+    ])->name('expenses.store');
 
     Route::get('/installments/manual/create', [
         ManualInstallmentController::class,

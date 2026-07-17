@@ -2,519 +2,922 @@
 
 @section('title', 'Tambah Angsuran Manual')
 @section('page-title', 'Tambah Angsuran Manual')
-@section('page-description', 'Catat pembayaran lanjutan untuk pembiayaan hasil migrasi')
+@section('page-description', 'Catat pembayaran lanjutan pembiayaan hasil migrasi')
 
 @section('content')
 
-    <a
-        href="{{ route('installments.index') }}"
-        class="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-emerald-600">
+    <div class="mx-auto max-w-7xl">
 
-        <i data-lucide="arrow-left" class="h-5 w-5"></i>
-        Kembali ke angsuran
-    </a>
+        <div class="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 
-    @if ($loanOptions->isEmpty())
+            <a
+                href="{{ route('installments.index') }}"
+                class="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-emerald-600">
 
-        <section class="mt-6 rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+                <i data-lucide="arrow-left" class="h-5 w-5"></i>
 
-            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                <i data-lucide="badge-check" class="h-8 w-8"></i>
+                Kembali ke angsuran
+            </a>
+
+            <div class="inline-flex w-fit items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700">
+
+                <i data-lucide="info" class="h-4 w-4"></i>
+
+                Angsuran hanya pokok dan bagi hasil
             </div>
 
-            <h2 class="mt-5 text-xl font-bold text-slate-900">
-                Tidak ada pembiayaan yang perlu dibayar
-            </h2>
+        </div>
 
-            <p class="mx-auto mt-2 max-w-xl text-sm leading-7 text-slate-500">
-                Semua pembiayaan hasil migrasi sudah lunas atau tidak memiliki sisa pokok.
-            </p>
+        @if ($errors->any())
 
-        </section>
+            <section class="mb-6 rounded-3xl border border-red-200 bg-red-50 p-5">
 
-    @else
+                <div class="flex gap-4">
 
-        <form
-            action="{{ route('manual-installments.store') }}"
-            method="POST"
-            class="mt-6"
-            x-data="{
-                loans: @js($loanOptions),
-
-                loanId: @js((string) old(
-                    'loan_id',
-                    $selectedLoanId
-                )),
-
-                principal: @js((string) old(
-                    'principal_amount',
-                    ''
-                )),
-
-                profitShare: @js((string) old(
-                    'profit_share_amount',
-                    '0'
-                )),
-
-                administration: @js((string) old(
-                    'administration_fee',
-                    '0'
-                )),
-
-                paymentMethod: @js((string) old(
-                    'payment_method',
-                    'cash'
-                )),
-
-                get selectedLoan() {
-                    return this.loans.find(
-                        (loan) =>
-                            String(loan.id)
-                            === String(this.loanId)
-                    ) || null;
-                },
-
-                get totalPayment() {
-                    return (
-                        Number(this.principal || 0)
-                        + Number(this.profitShare || 0)
-                        + Number(this.administration || 0)
-                    );
-                },
-
-                get remainingPrincipal() {
-                    if (!this.selectedLoan) {
-                        return 0;
-                    }
-
-                    return Math.max(
-                        Number(
-                            this.selectedLoan
-                                .outstanding_principal
-                        )
-                        - Number(this.principal || 0),
-                        0
-                    );
-                },
-
-                fillAllPrincipal() {
-                    if (!this.selectedLoan) {
-                        return;
-                    }
-
-                    this.principal =
-                        this.selectedLoan
-                            .outstanding_principal;
-                },
-
-                fillProfitSuggestion() {
-                    if (!this.selectedLoan) {
-                        return;
-                    }
-
-                    this.profitShare =
-                        this.selectedLoan
-                            .suggested_profit_share;
-                },
-
-                currency(value) {
-                    return new Intl.NumberFormat(
-                        'id-ID',
-                        {
-                            style: 'currency',
-                            currency: 'IDR',
-                            maximumFractionDigits: 0,
-                        }
-                    ).format(
-                        Number(value || 0)
-                    );
-                },
-            }">
-
-            @csrf
-
-            <div class="grid gap-6 xl:grid-cols-[1fr_360px]">
-
-                <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-
-                    <div class="flex items-center gap-3 border-b border-slate-100 pb-5">
-
-                        <div class="rounded-2xl bg-emerald-100 p-3 text-emerald-600">
-                            <i data-lucide="hand-coins" class="h-6 w-6"></i>
-                        </div>
-
-                        <div>
-                            <h2 class="font-bold text-slate-900">
-                                Data Pembayaran
-                            </h2>
-
-                            <p class="mt-1 text-xs text-slate-500">
-                                Pilih pembiayaan hasil import yang masih memiliki saldo.
-                            </p>
-                        </div>
-
+                    <div class="h-fit rounded-2xl bg-red-100 p-3 text-red-600">
+                        <i data-lucide="triangle-alert" class="h-6 w-6"></i>
                     </div>
 
-                    <div class="mt-6">
+                    <div>
 
-                        <label class="mb-2 block text-sm font-semibold text-slate-700">
-                            Pembiayaan anggota
-                        </label>
+                        <h3 class="font-bold text-red-800">
+                            Pembayaran belum dapat disimpan
+                        </h3>
 
-                        <select
-                            name="loan_id"
-                            x-model="loanId"
-                            required
-                            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                        <ul class="mt-3 list-inside list-disc space-y-1 text-sm text-red-600">
 
-                            <option value="">
-                                Pilih pembiayaan
-                            </option>
+                            @foreach ($errors->all() as $error)
 
-                            @foreach ($loanOptions as $loanOption)
-
-                                <option value="{{ $loanOption['id'] }}">
-                                    {{ $loanOption['loan_number'] }}
-                                    —
-                                    {{ $loanOption['member_number'] }}
-                                    {{ $loanOption['member_name'] }}
-                                    —
-                                    Sisa Rp{{ number_format(
-                                        $loanOption['outstanding_principal'],
-                                        0,
-                                        ',',
-                                        '.'
-                                    ) }}
-                                </option>
+                                <li>
+                                    {{ $error }}
+                                </li>
 
                             @endforeach
 
-                        </select>
-
-                        @error('loan_id')
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ $message }}
-                            </p>
-                        @enderror
+                        </ul>
 
                     </div>
 
-                    <div
-                        x-show="selectedLoan"
-                        x-cloak
-                        class="mt-5 grid gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-5 sm:grid-cols-3">
+                </div>
 
-                        <div>
-                            <p class="text-xs text-blue-500">
-                                Anggota
-                            </p>
+            </section>
 
-                            <p
-                                class="mt-1 text-sm font-bold text-blue-900"
-                                x-text="selectedLoan?.member_name">
-                            </p>
-                        </div>
+        @endif
 
-                        <div>
-                            <p class="text-xs text-blue-500">
-                                Angsuran berikutnya
-                            </p>
+        @if ($loanOptions->isEmpty())
 
-                            <p class="mt-1 text-sm font-bold text-blue-900">
-                                Ke-<span x-text="selectedLoan?.next_installment_number"></span>
-                            </p>
-                        </div>
+            <section class="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
 
-                        <div>
-                            <p class="text-xs text-blue-500">
-                                Sisa pokok
-                            </p>
+                <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                    <i data-lucide="badge-check" class="h-9 w-9"></i>
+                </div>
 
-                            <p
-                                class="mt-1 text-sm font-bold text-blue-900"
-                                x-text="currency(
-                                    selectedLoan?.outstanding_principal
-                                )">
-                            </p>
-                        </div>
+                <h2 class="mt-5 text-xl font-bold text-slate-900">
+                    Tidak ada pembiayaan yang perlu dibayar
+                </h2>
 
-                    </div>
+                <p class="mx-auto mt-2 max-w-xl text-sm leading-7 text-slate-500">
+                    Semua pembiayaan hasil migrasi sudah lunas atau tidak mempunyai sisa pokok.
+                </p>
 
-                    <div class="mt-6 grid gap-5 md:grid-cols-2">
+                <a
+                    href="{{ route('installments.index') }}"
+                    class="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700">
 
-                        <div>
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Tanggal pembayaran
-                            </label>
+                    <i data-lucide="arrow-left" class="h-5 w-5"></i>
 
-                            <input
-                                type="date"
-                                name="payment_date"
-                                value="{{ old(
-                                    'payment_date',
-                                    now()->format('Y-m-d')
-                                ) }}"
-                                max="{{ now()->format('Y-m-d') }}"
-                                required
-                                class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                    Kembali ke daftar angsuran
+                </a>
 
-                            @error('payment_date')
-                                <p class="mt-2 text-sm text-red-600">
-                                    {{ $message }}
-                                </p>
-                            @enderror
-                        </div>
+            </section>
 
-                        <div>
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Metode pembayaran
-                            </label>
+        @else
 
-                            <select
-                                name="payment_method"
-                                x-model="paymentMethod"
-                                required
-                                class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm focus:border-emerald-500 focus:ring-emerald-500">
+            <form
+                action="{{ route('manual-installments.store') }}"
+                method="POST"
+                x-data="{
+                    loans: @js(
+                        $loanOptions
+                            ->values()
+                            ->all()
+                    ),
 
-                                <option value="cash">
-                                    Tunai
-                                </option>
+                    loanId: @js(
+                        (string) old(
+                            'loan_id',
+                            $selectedLoanId
+                        )
+                    ),
 
-                                <option value="transfer">
-                                    Transfer
-                                </option>
+                    principal: @js(
+                        (string) old(
+                            'principal_amount',
+                            ''
+                        )
+                    ),
 
-                                <option value="other">
-                                    Lainnya
-                                </option>
+                    profitShare: @js(
+                        (string) old(
+                            'profit_share_amount',
+                            '0'
+                        )
+                    ),
 
-                            </select>
-                        </div>
+                    paymentMethod: @js(
+                        (string) old(
+                            'payment_method',
+                            'cash'
+                        )
+                    ),
 
-                        <div>
-                            <div class="mb-2 flex items-center justify-between gap-3">
+                    get selectedLoan() {
+                        return this.loans.find(
+                            (loan) =>
+                                String(loan.id)
+                                === String(this.loanId)
+                        ) || null;
+                    },
 
-                                <label class="block text-sm font-semibold text-slate-700">
-                                    Angsuran pokok
-                                </label>
+                    get totalPayment() {
+                        return (
+                            Number(
+                                this.principal || 0
+                            )
+                            + Number(
+                                this.profitShare || 0
+                            )
+                        );
+                    },
 
-                                <button
-                                    type="button"
-                                    x-on:click="fillAllPrincipal()"
-                                    x-bind:disabled="!selectedLoan"
-                                    class="text-xs font-semibold text-emerald-600 hover:text-emerald-700 disabled:cursor-not-allowed disabled:text-slate-300">
+                    get remainingPrincipal() {
+                        if (!this.selectedLoan) {
+                            return 0;
+                        }
 
-                                    Isi seluruh sisa
-                                </button>
+                        return Math.max(
+                            Number(
+                                this.selectedLoan
+                                    .outstanding_principal
+                            )
+                            - Number(
+                                this.principal || 0
+                            ),
+                            0
+                        );
+                    },
+
+                    get validPrincipal() {
+                        if (!this.selectedLoan) {
+                            return false;
+                        }
+
+                        const principal = Number(
+                            this.principal || 0
+                        );
+
+                        const outstanding = Number(
+                            this.selectedLoan
+                                .outstanding_principal
+                            || 0
+                        );
+
+                        return (
+                            principal > 0
+                            && principal <= outstanding
+                        );
+                    },
+
+                    get validProfitShare() {
+                        return Number(
+                            this.profitShare || 0
+                        ) >= 0;
+                    },
+
+                    get canSubmit() {
+                        return (
+                            this.selectedLoan
+                            && this.validPrincipal
+                            && this.validProfitShare
+                            && this.totalPayment > 0
+                        );
+                    },
+
+                    changeLoan() {
+                        this.principal = '';
+                        this.profitShare = '0';
+                    },
+
+                    fillAllPrincipal() {
+                        if (!this.selectedLoan) {
+                            return;
+                        }
+
+                        this.principal =
+                            this.selectedLoan
+                                .outstanding_principal;
+                    },
+
+                    fillProfitSuggestion() {
+                        if (!this.selectedLoan) {
+                            return;
+                        }
+
+                        this.profitShare =
+                            this.selectedLoan
+                                .suggested_profit_share;
+                    },
+
+                    currency(value) {
+                        return new Intl.NumberFormat(
+                            'id-ID',
+                            {
+                                style: 'currency',
+                                currency: 'IDR',
+                                maximumFractionDigits: 0,
+                            }
+                        ).format(
+                            Number(value || 0)
+                        );
+                    },
+                }">
+
+                @csrf
+
+                <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+
+                    <section class="space-y-6">
+
+                        <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+
+                            <div class="flex items-center gap-4 border-b border-slate-100 pb-6">
+
+                                <div class="rounded-2xl bg-emerald-100 p-3 text-emerald-600">
+                                    <i data-lucide="hand-coins" class="h-6 w-6"></i>
+                                </div>
+
+                                <div>
+
+                                    <h2 class="font-bold text-slate-900">
+                                        Data Pembiayaan
+                                    </h2>
+
+                                    <p class="mt-1 text-xs leading-5 text-slate-500">
+                                        Pilih pembiayaan hasil migrasi yang masih memiliki sisa pokok.
+                                    </p>
+
+                                </div>
 
                             </div>
 
-                            <input
-                                type="number"
-                                name="principal_amount"
-                                x-model="principal"
-                                min="1"
-                                step="0.01"
-                                x-bind:max="selectedLoan
-                                    ? selectedLoan.outstanding_principal
-                                    : undefined"
-                                required
-                                placeholder="Contoh: 500000"
-                                class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                            <div class="mt-6">
 
-                            @error('principal_amount')
-                                <p class="mt-2 text-sm text-red-600">
-                                    {{ $message }}
-                                </p>
-                            @enderror
-                        </div>
+                                <label
+                                    for="loan_id"
+                                    class="mb-2 block text-sm font-semibold text-slate-700">
 
-                        <div>
-                            <div class="mb-2 flex items-center justify-between gap-3">
+                                    Pembiayaan anggota
 
-                                <label class="block text-sm font-semibold text-slate-700">
-                                    Bagi hasil
+                                    <span class="text-red-500">
+                                        *
+                                    </span>
+
                                 </label>
 
-                                <button
-                                    type="button"
-                                    x-on:click="fillProfitSuggestion()"
-                                    x-bind:disabled="!selectedLoan"
-                                    class="text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-300">
+                                <select
+                                    name="loan_id"
+                                    id="loan_id"
+                                    x-model="loanId"
+                                    x-on:change="changeLoan()"
+                                    required
+                                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
 
-                                    Estimasi 1,5%
-                                </button>
+                                    <option value="">
+                                        Pilih pembiayaan
+                                    </option>
+
+                                    @foreach ($loanOptions as $loanOption)
+
+                                        <option value="{{ $loanOption['id'] }}">
+
+                                            {{ $loanOption['loan_number'] }}
+                                            —
+                                            {{ $loanOption['member_number'] }}
+                                            {{ $loanOption['member_name'] }}
+                                            —
+                                            Sisa Rp{{ number_format(
+                                                $loanOption[
+                                                    'outstanding_principal'
+                                                ],
+                                                0,
+                                                ',',
+                                                '.'
+                                            ) }}
+
+                                        </option>
+
+                                    @endforeach
+
+                                </select>
+
+                                @error('loan_id')
+
+                                    <p class="mt-2 text-sm font-medium text-red-600">
+                                        {{ $message }}
+                                    </p>
+
+                                @enderror
 
                             </div>
 
-                            <input
-                                type="number"
-                                name="profit_share_amount"
-                                x-model="profitShare"
-                                min="0"
-                                step="0.01"
-                                class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                            <div
+                                x-show="selectedLoan"
+                                x-cloak
+                                class="mt-6 grid gap-4 rounded-3xl border border-blue-100 bg-blue-50 p-5 sm:grid-cols-2 lg:grid-cols-4">
 
-                            <p class="mt-2 text-xs leading-5 text-slate-400">
-                                Tombol 1,5% hanya alat bantu. Nominal tetap disesuaikan dengan catatan koperasi.
-                            </p>
+                                <div>
 
-                            @error('profit_share_amount')
-                                <p class="mt-2 text-sm text-red-600">
-                                    {{ $message }}
-                                </p>
-                            @enderror
-                        </div>
+                                    <p class="text-xs text-blue-500">
+                                        Anggota
+                                    </p>
 
-                        <div>
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Biaya administrasi
-                            </label>
+                                    <p
+                                        class="mt-1 text-sm font-bold text-blue-900"
+                                        x-text="selectedLoan?.member_name">
+                                    </p>
 
-                            <input
-                                type="number"
-                                name="administration_fee"
-                                x-model="administration"
-                                min="0"
-                                step="0.01"
-                                class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                                    <p
+                                        class="mt-1 text-xs text-blue-600"
+                                        x-text="selectedLoan?.member_number">
+                                    </p>
 
-                            @error('administration_fee')
-                                <p class="mt-2 text-sm text-red-600">
-                                    {{ $message }}
-                                </p>
-                            @enderror
-                        </div>
+                                </div>
 
-                        <div x-show="paymentMethod === 'transfer'" x-cloak>
+                                <div>
 
-                            <label class="mb-2 block text-sm font-semibold text-slate-700">
-                                Nomor referensi transfer
-                            </label>
+                                    <p class="text-xs text-blue-500">
+                                        Angsuran berikutnya
+                                    </p>
 
-                            <input
-                                type="text"
-                                name="reference_number"
-                                value="{{ old('reference_number') }}"
-                                maxlength="150"
-                                x-bind:required="paymentMethod === 'transfer'"
-                                placeholder="Nomor transfer atau transaksi"
-                                class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                                    <p class="mt-1 text-sm font-bold text-blue-900">
 
-                            @error('reference_number')
-                                <p class="mt-2 text-sm text-red-600">
-                                    {{ $message }}
-                                </p>
-                            @enderror
-                        </div>
+                                        Ke-<span
+                                            x-text="selectedLoan?.next_installment_number">
+                                        </span>
 
-                    </div>
+                                    </p>
 
-                    <div class="mt-5">
+                                </div>
 
-                        <label class="mb-2 block text-sm font-semibold text-slate-700">
-                            Catatan
-                        </label>
+                                <div>
 
-                        <textarea
-                            name="notes"
-                            rows="4"
-                            maxlength="1000"
-                            placeholder="Catatan tambahan pembayaran"
-                            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm focus:border-emerald-500 focus:ring-emerald-500">{{ old('notes') }}</textarea>
+                                    <p class="text-xs text-blue-500">
+                                        Sisa pokok
+                                    </p>
 
-                        @error('notes')
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ $message }}
-                            </p>
-                        @enderror
+                                    <p
+                                        class="mt-1 text-sm font-bold text-blue-900"
+                                        x-text="currency(
+                                            selectedLoan?.outstanding_principal
+                                        )">
+                                    </p>
 
-                    </div>
+                                </div>
 
-                </section>
+                                <div>
 
-                <aside class="h-fit rounded-3xl bg-gradient-to-br from-emerald-700 to-slate-900 p-6 text-white shadow-lg">
+                                    <p class="text-xs text-blue-500">
+                                        Tenor tercatat
+                                    </p>
 
-                    <p class="text-xs font-semibold uppercase tracking-wider text-emerald-200">
-                        Ringkasan pembayaran
-                    </p>
+                                    <p class="mt-1 text-sm font-bold text-blue-900">
 
-                    <div class="mt-6 space-y-4">
+                                        <template
+                                            x-if="
+                                                Number(
+                                                    selectedLoan?.tenor_months
+                                                ) > 0
+                                            ">
 
-                        <div class="flex justify-between gap-4 border-b border-white/10 pb-4">
-                            <span class="text-sm text-emerald-100">
-                                Angsuran pokok
-                            </span>
+                                            <span>
+                                                <span
+                                                    x-text="selectedLoan?.tenor_months">
+                                                </span>
+                                                bulan
+                                            </span>
 
-                            <strong x-text="currency(principal)">
-                            </strong>
-                        </div>
+                                        </template>
 
-                        <div class="flex justify-between gap-4 border-b border-white/10 pb-4">
-                            <span class="text-sm text-emerald-100">
-                                Bagi hasil
-                            </span>
+                                        <template
+                                            x-if="
+                                                Number(
+                                                    selectedLoan?.tenor_months
+                                                ) <= 0
+                                            ">
 
-                            <strong x-text="currency(profitShare)">
-                            </strong>
-                        </div>
+                                            <span>
+                                                Tidak tersedia
+                                            </span>
 
-                        <div class="flex justify-between gap-4 border-b border-white/10 pb-4">
-                            <span class="text-sm text-emerald-100">
-                                Administrasi
-                            </span>
+                                        </template>
 
-                            <strong x-text="currency(administration)">
-                            </strong>
-                        </div>
+                                    </p>
 
-                        <div class="pt-2">
-                            <p class="text-sm text-emerald-100">
-                                Total diterima
-                            </p>
+                                </div>
 
-                            <p
-                                class="mt-2 text-3xl font-bold"
-                                x-text="currency(totalPayment)">
-                            </p>
-                        </div>
+                            </div>
 
-                        <div class="rounded-2xl bg-white/10 p-4">
-                            <p class="text-xs text-emerald-100">
-                                Sisa pokok setelah pembayaran
-                            </p>
+                        </article>
 
-                            <p
-                                class="mt-2 text-xl font-bold"
-                                x-text="currency(remainingPrincipal)">
-                            </p>
-                        </div>
+                        <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
 
-                    </div>
+                            <div class="flex items-center gap-4 border-b border-slate-100 pb-6">
 
-                    <button
-                        type="submit"
-                        x-bind:disabled="
-                            !selectedLoan
-                            || Number(principal) <= 0
-                            || Number(principal)
-                                > Number(
-                                    selectedLoan
-                                        .outstanding_principal
-                                )
-                        "
-                        class="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50">
+                                <div class="rounded-2xl bg-amber-100 p-3 text-amber-600">
+                                    <i data-lucide="receipt-text" class="h-6 w-6"></i>
+                                </div>
 
-                        <i data-lucide="save" class="h-5 w-5"></i>
-                        Simpan Pembayaran
-                    </button>
+                                <div>
 
-                </aside>
+                                    <h2 class="font-bold text-slate-900">
+                                        Data Pembayaran
+                                    </h2>
 
-            </div>
+                                    <p class="mt-1 text-xs leading-5 text-slate-500">
+                                        Masukkan pokok dan bagi hasil yang dibayar anggota.
+                                    </p>
 
-        </form>
+                                </div>
 
-    @endif
+                            </div>
+
+                            <div class="mt-6 grid gap-5 md:grid-cols-2">
+
+                                <div>
+
+                                    <label
+                                        for="payment_date"
+                                        class="mb-2 block text-sm font-semibold text-slate-700">
+
+                                        Tanggal pembayaran
+
+                                        <span class="text-red-500">
+                                            *
+                                        </span>
+
+                                    </label>
+
+                                    <input
+                                        type="date"
+                                        name="payment_date"
+                                        id="payment_date"
+                                        value="{{ old(
+                                            'payment_date',
+                                            now()->format('Y-m-d')
+                                        ) }}"
+                                        max="{{ now()->format('Y-m-d') }}"
+                                        required
+                                        class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+
+                                    @error('payment_date')
+
+                                        <p class="mt-2 text-sm font-medium text-red-600">
+                                            {{ $message }}
+                                        </p>
+
+                                    @enderror
+
+                                </div>
+
+                                <div>
+
+                                    <label
+                                        for="payment_method"
+                                        class="mb-2 block text-sm font-semibold text-slate-700">
+
+                                        Metode pembayaran
+
+                                        <span class="text-red-500">
+                                            *
+                                        </span>
+
+                                    </label>
+
+                                    <select
+                                        name="payment_method"
+                                        id="payment_method"
+                                        x-model="paymentMethod"
+                                        required
+                                        class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+
+                                        <option value="cash">
+                                            Tunai
+                                        </option>
+
+                                        <option value="transfer">
+                                            Transfer
+                                        </option>
+
+                                        <option value="other">
+                                            Lainnya
+                                        </option>
+
+                                    </select>
+
+                                    @error('payment_method')
+
+                                        <p class="mt-2 text-sm font-medium text-red-600">
+                                            {{ $message }}
+                                        </p>
+
+                                    @enderror
+
+                                </div>
+
+                                <div>
+
+                                    <div class="mb-2 flex items-center justify-between gap-3">
+
+                                        <label
+                                            for="principal_amount"
+                                            class="block text-sm font-semibold text-slate-700">
+
+                                            Angsuran pokok
+
+                                            <span class="text-red-500">
+                                                *
+                                            </span>
+
+                                        </label>
+
+                                        <button
+                                            type="button"
+                                            x-on:click="fillAllPrincipal()"
+                                            x-bind:disabled="!selectedLoan"
+                                            class="text-xs font-semibold text-emerald-600 hover:text-emerald-700 disabled:cursor-not-allowed disabled:text-slate-300">
+
+                                            Isi seluruh sisa
+                                        </button>
+
+                                    </div>
+
+                                    <div class="relative">
+
+                                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm font-semibold text-slate-400">
+                                            Rp
+                                        </span>
+
+                                        <input
+                                            type="number"
+                                            name="principal_amount"
+                                            id="principal_amount"
+                                            x-model.number="principal"
+                                            min="1"
+                                            step="1"
+                                            x-bind:max="
+                                                selectedLoan
+                                                    ? selectedLoan
+                                                        .outstanding_principal
+                                                    : undefined
+                                            "
+                                            required
+                                            placeholder="Contoh: 500000"
+                                            class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-12 pr-4 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+
+                                    </div>
+
+                                    <p
+                                        x-show="
+                                            selectedLoan
+                                            && !validPrincipal
+                                            && Number(principal || 0) > 0
+                                        "
+                                        x-cloak
+                                        class="mt-2 text-xs font-medium text-red-600">
+
+                                        Pokok tidak boleh melebihi sisa pembiayaan.
+
+                                    </p>
+
+                                    @error('principal_amount')
+
+                                        <p class="mt-2 text-sm font-medium text-red-600">
+                                            {{ $message }}
+                                        </p>
+
+                                    @enderror
+
+                                </div>
+
+                                <div>
+
+                                    <div class="mb-2 flex items-center justify-between gap-3">
+
+                                        <label
+                                            for="profit_share_amount"
+                                            class="block text-sm font-semibold text-slate-700">
+
+                                            Bagi hasil
+                                        </label>
+
+                                        <button
+                                            type="button"
+                                            x-on:click="fillProfitSuggestion()"
+                                            x-bind:disabled="
+                                                !selectedLoan
+                                                || Number(
+                                                    selectedLoan
+                                                        .suggested_profit_share
+                                                ) <= 0
+                                            "
+                                            class="text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-300">
+
+                                            Gunakan estimasi
+                                        </button>
+
+                                    </div>
+
+                                    <div class="relative">
+
+                                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm font-semibold text-slate-400">
+                                            Rp
+                                        </span>
+
+                                        <input
+                                            type="number"
+                                            name="profit_share_amount"
+                                            id="profit_share_amount"
+                                            x-model.number="profitShare"
+                                            min="0"
+                                            step="1"
+                                            placeholder="Contoh: 1500"
+                                            class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-12 pr-4 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+
+                                    </div>
+
+                                    <div
+                                        x-show="
+                                            selectedLoan
+                                            && Number(
+                                                selectedLoan
+                                                    .suggested_profit_share
+                                            ) > 0
+                                        "
+                                        x-cloak
+                                        class="mt-2 rounded-2xl bg-blue-50 p-3">
+
+                                        <p class="text-xs leading-5 text-blue-700">
+
+                                            Estimasi bagi hasil bulanan:
+
+                                            <strong
+                                                x-text="currency(
+                                                    selectedLoan
+                                                        ?.suggested_profit_share
+                                                )">
+                                            </strong>
+
+                                            dari bagi hasil keseluruhan
+
+                                            <strong>
+                                                <span
+                                                    x-text="
+                                                        selectedLoan
+                                                            ?.profit_share_rate
+                                                    ">
+                                                </span>%
+                                            </strong>
+
+                                            yang dibagi mengikuti tenor.
+
+                                        </p>
+
+                                    </div>
+
+                                    <p
+                                        x-show="
+                                            selectedLoan
+                                            && Number(
+                                                selectedLoan
+                                                    .suggested_profit_share
+                                            ) <= 0
+                                        "
+                                        x-cloak
+                                        class="mt-2 text-xs leading-5 text-amber-600">
+
+                                        Tenor pembiayaan migrasi tidak tersedia. Isi bagi hasil sesuai catatan koperasi.
+
+                                    </p>
+
+                                    @error('profit_share_amount')
+
+                                        <p class="mt-2 text-sm font-medium text-red-600">
+                                            {{ $message }}
+                                        </p>
+
+                                    @enderror
+
+                                </div>
+
+                                <div
+                                    x-show="paymentMethod === 'transfer'"
+                                    x-cloak
+                                    class="md:col-span-2">
+
+                                    <label
+                                        for="reference_number"
+                                        class="mb-2 block text-sm font-semibold text-slate-700">
+
+                                        Nomor referensi transfer
+
+                                        <span class="text-red-500">
+                                            *
+                                        </span>
+
+                                    </label>
+
+                                    <input
+                                        type="text"
+                                        name="reference_number"
+                                        id="reference_number"
+                                        value="{{ old('reference_number') }}"
+                                        maxlength="150"
+                                        x-bind:required="
+                                            paymentMethod === 'transfer'
+                                        "
+                                        placeholder="Nomor transfer atau transaksi"
+                                        class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+
+                                    @error('reference_number')
+
+                                        <p class="mt-2 text-sm font-medium text-red-600">
+                                            {{ $message }}
+                                        </p>
+
+                                    @enderror
+
+                                </div>
+
+                                <div class="md:col-span-2">
+
+                                    <label
+                                        for="notes"
+                                        class="mb-2 block text-sm font-semibold text-slate-700">
+
+                                        Catatan
+                                    </label>
+
+                                    <textarea
+                                        name="notes"
+                                        id="notes"
+                                        rows="4"
+                                        maxlength="1000"
+                                        placeholder="Catatan tambahan pembayaran"
+                                        class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm leading-6 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">{{ old('notes') }}</textarea>
+
+                                    @error('notes')
+
+                                        <p class="mt-2 text-sm font-medium text-red-600">
+                                            {{ $message }}
+                                        </p>
+
+                                    @enderror
+
+                                </div>
+
+                            </div>
+
+                        </article>
+
+                    </section>
+
+                    <aside class="h-fit xl:sticky xl:top-6">
+
+                        <article class="overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-700 via-teal-800 to-slate-900 text-white shadow-xl">
+
+                            <div class="border-b border-white/10 p-6">
+
+                                <div class="flex items-center gap-3">
+
+                                    <div class="rounded-2xl bg-white/10 p-3">
+                                        <i data-lucide="calculator" class="h-6 w-6"></i>
+                                    </div>
+
+                                    <div>
+
+                                        <h2 class="font-bold">
+                                            Ringkasan Pembayaran
+                                        </h2>
+
+                                        <p class="mt-1 text-xs text-emerald-100">
+                                            Pokok dan bagi hasil
+                                        </p>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                            <div class="space-y-4 p-6">
+
+                                <div class="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
+
+                                    <span class="text-sm text-emerald-100">
+                                        Angsuran pokok
+                                    </span>
+
+                                    <strong
+                                        class="text-right"
+                                        x-text="currency(principal)">
+                                    </strong>
+
+                                </div>
+
+                                <div class="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
+
+                                    <span class="text-sm text-emerald-100">
+                                        Bagi hasil
+                                    </span>
+
+                                    <strong
+                                        class="text-right text-amber-300"
+                                        x-text="currency(profitShare)">
+                                    </strong>
+
+                                </div>
+
+                                <div class="rounded-2xl bg-white p-5 text-emerald-800">
+
+                                    <p class="text-xs font-semibold uppercase tracking-wider text-emerald-600">
+                                        Total diterima
+                                    </p>
+
+                                    <p
+                                        class="mt-2 text-3xl font-bold"
+                                        x-text="currency(totalPayment)">
+                                    </p>
+
+                                </div>
+
+                                <div class="rounded-2xl bg-white/10 p-5">
+
+                                    <p class="text-xs text-emerald-100">
+                                        Sisa pokok setelah pembayaran
+                                    </p>
+
+                                    <p
+                                        class="mt-2 text-xl font-bold"
+                                        x-text="currency(remainingPrincipal)">
+                                    </p>
+
+                                </div>
+
+                                <div class="rounded-2xl border border-blue-300/20 bg-blue-400/10 p-4">
+
+                                    <div class="flex gap-3">
+
+                                        <i data-lucide="info" class="mt-0.5 h-5 w-5 shrink-0 text-blue-200"></i>
+
+                                        <p class="text-xs leading-6 text-blue-100">
+                                            Biaya administrasi tidak dicatat pada angsuran. Administrasi hanya dicatat ketika pembiayaan dibuat atau dicairkan.
+                                        </p>
+
+                                    </div>
+
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    x-bind:disabled="!canSubmit"
+                                    class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50">
+
+                                    <i data-lucide="save" class="h-5 w-5"></i>
+
+                                    Simpan Pembayaran
+                                </button>
+
+                                <a
+                                    href="{{ route('installments.index') }}"
+                                    class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/20 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10">
+
+                                    <i data-lucide="x" class="h-5 w-5"></i>
+
+                                    Batal
+                                </a>
+
+                            </div>
+
+                        </article>
+
+                    </aside>
+
+                </div>
+
+            </form>
+
+        @endif
+
+    </div>
 
 @endsection

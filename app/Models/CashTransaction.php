@@ -88,6 +88,7 @@ class CashTransaction extends Model
             'loan_disbursement' => 'Pencairan Pinjaman',
             'installment_payment' => 'Pembayaran Angsuran',
             'shu_payment' => 'Pembayaran SHU',
+            'manual_expense' => 'Pengeluaran Operasional',
             default => 'Transaksi Manual',
         };
     }

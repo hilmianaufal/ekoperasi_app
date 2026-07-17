@@ -50,8 +50,8 @@ class AppSetting extends Model
                         'cooperative_name' => 'e-Koperasi',
                         'short_name' => 'e-Koperasi',
                         'tagline' => 'Sistem Manajemen Koperasi',
-                        'default_interest_rate' => 1,
-                        'default_tenor_months' => 12,
+                        'default_interest_rate' => 1.5,
+                        'default_tenor_months' => 10,
                         'minimum_loan_amount' => 100000,
                         'timezone' => 'Asia/Jakarta',
                     ]

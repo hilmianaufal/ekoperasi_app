@@ -213,7 +213,23 @@
                 <i data-lucide="landmark" class="h-5 w-5"></i>
                 <span>Laporan Keuangan</span>
             </a>
+            <a href="{{ route('expenses.index') }}" @class([
+                'flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition',
 
+                'bg-red-500/15 text-red-300' => request()->routeIs('expenses.*'),
+
+                'text-slate-300 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'expenses.*'),
+            ])>
+
+                <i data-lucide="circle-minus" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Pengeluaran
+                </span>
+
+            </a>
             <a href="{{ route('trial-balance.index') }}"
                 class="{{ request()->routeIs('trial-balance.*')
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-950/30'

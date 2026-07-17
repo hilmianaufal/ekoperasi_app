@@ -115,19 +115,31 @@
                     </p>
                 </div>
 
-                <a
-                    href="{{ route('cash-transactions.create') }}"
-                    class="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 hover:bg-emerald-700">
+                <div class="flex flex-col gap-3 sm:flex-row">
 
-                    <i data-lucide="plus" class="h-5 w-5"></i>
-                    Transaksi Manual
-                </a>
+                    <a href="{{ route('expenses.create') }}"
+                        class="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-red-200 transition hover:bg-red-700">
+
+                        <i data-lucide="circle-minus" class="h-5 w-5">
+                        </i>
+
+                        Tambah Pengeluaran
+                    </a>
+
+                    <a href="{{ route('cash-transactions.create') }}"
+                        class="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700">
+
+                        <i data-lucide="circle-plus" class="h-5 w-5">
+                        </i>
+
+                        Transaksi Manual
+                    </a>
+
+                </div>
 
             </div>
 
-            <form
-                action="{{ route('cash-transactions.index') }}"
-                method="GET"
+            <form action="{{ route('cash-transactions.index') }}" method="GET"
                 class="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
 
                 <div class="relative xl:col-span-2">
@@ -136,45 +148,34 @@
                         <i data-lucide="search" class="h-5 w-5"></i>
                     </div>
 
-                    <input
-                        type="text"
-                        name="search"
-                        value="{{ $search }}"
+                    <input type="text" name="search" value="{{ $search }}"
                         placeholder="Cari kode, kategori, atau keterangan..."
                         class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-12 pr-4 text-sm outline-none focus:border-emerald-500 focus:bg-white">
 
                 </div>
 
-                <select
-                    name="direction"
+                <select name="direction"
                     class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-500">
 
                     <option value="">Semua jenis</option>
 
-                    <option
-                        value="income"
-                        @selected($direction === 'income')>
+                    <option value="income" @selected($direction === 'income')>
                         Kas Masuk
                     </option>
 
-                    <option
-                        value="expense"
-                        @selected($direction === 'expense')>
+                    <option value="expense" @selected($direction === 'expense')>
                         Kas Keluar
                     </option>
 
                 </select>
 
-                <select
-                    name="category"
+                <select name="category"
                     class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-500">
 
                     <option value="">Semua kategori</option>
 
                     @foreach ($categories as $categoryOption)
-                        <option
-                            value="{{ $categoryOption }}"
-                            @selected($category === $categoryOption)>
+                        <option value="{{ $categoryOption }}" @selected($category === $categoryOption)>
 
                             {{ $categoryOption }}
                         </option>
@@ -182,24 +183,15 @@
 
                 </select>
 
-                <input
-                    type="date"
-                    name="date_from"
-                    value="{{ $dateFrom }}"
-                    title="Tanggal mulai"
+                <input type="date" name="date_from" value="{{ $dateFrom }}" title="Tanggal mulai"
                     class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-500">
 
-                <input
-                    type="date"
-                    name="date_to"
-                    value="{{ $dateTo }}"
-                    title="Tanggal selesai"
+                <input type="date" name="date_to" value="{{ $dateTo }}" title="Tanggal selesai"
                     class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-500">
 
                 <div class="flex gap-2 md:col-span-2 xl:col-span-6 xl:justify-end">
 
-                    <button
-                        type="submit"
+                    <button type="submit"
                         class="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800">
 
                         <i data-lucide="list-filter" class="h-5 w-5"></i>
@@ -207,8 +199,7 @@
                     </button>
 
                     @if ($search || $direction || $category || $dateFrom || $dateTo)
-                        <a
-                            href="{{ route('cash-transactions.index') }}"
+                        <a href="{{ route('cash-transactions.index') }}"
                             class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">
 
                             <i data-lucide="rotate-ccw" class="h-5 w-5"></i>
@@ -242,7 +233,6 @@
                 <tbody class="divide-y divide-slate-100">
 
                     @forelse ($transactions as $transaction)
-
                         <tr class="hover:bg-slate-50">
 
                             <td class="whitespace-nowrap px-6 py-4">
@@ -268,11 +258,13 @@
                                 </p>
 
                                 @if ($transaction->direction === 'income')
-                                    <span class="mt-2 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-semibold text-emerald-700">
+                                    <span
+                                        class="mt-2 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-semibold text-emerald-700">
                                         Kas Masuk
                                     </span>
                                 @else
-                                    <span class="mt-2 inline-flex rounded-full bg-red-100 px-3 py-1 text-[10px] font-semibold text-red-700">
+                                    <span
+                                        class="mt-2 inline-flex rounded-full bg-red-100 px-3 py-1 text-[10px] font-semibold text-red-700">
                                         Kas Keluar
                                     </span>
                                 @endif
@@ -301,7 +293,8 @@
 
                             <td class="whitespace-nowrap px-6 py-4 text-right">
 
-                                <p class="text-sm font-bold {{ $transaction->direction === 'income' ? 'text-emerald-600' : 'text-red-600' }}">
+                                <p
+                                    class="text-sm font-bold {{ $transaction->direction === 'income' ? 'text-emerald-600' : 'text-red-600' }}">
                                     {{ $transaction->direction === 'income' ? '+' : '-' }}
                                     Rp{{ number_format($transaction->amount, 0, ',', '.') }}
                                 </p>
@@ -316,7 +309,8 @@
 
                             <td colspan="6" class="px-6 py-16 text-center">
 
-                                <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                                <div
+                                    class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                                     <i data-lucide="wallet" class="h-9 w-9"></i>
                                 </div>
 
@@ -331,7 +325,6 @@
                             </td>
 
                         </tr>
-
                     @endforelse
 
                 </tbody>

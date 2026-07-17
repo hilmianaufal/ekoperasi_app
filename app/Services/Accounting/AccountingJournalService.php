@@ -3,6 +3,7 @@
 namespace App\Services\Accounting;
 
 use App\Models\AccountingAccountMapping;
+use App\Models\CashTransaction;
 use App\Models\InstallmentPayment;
 use App\Models\JournalEntry;
 use App\Models\Loan;
@@ -30,13 +31,11 @@ class AccountingJournalService
             return null;
         }
 
-        $savingMapping = match (
-            strtoupper(
-                (string) $transaction
-                    ->savingType
-                    ->code
-            )
-        ) {
+        $savingMapping = match (strtoupper(
+            (string) $transaction
+                ->savingType
+                ->code
+        )) {
             'POKOK' => 'principal_savings',
             'WAJIB' => 'mandatory_savings',
             'SUKARELA' => 'voluntary_savings',
@@ -76,69 +75,160 @@ class AccountingJournalService
             sourceType: 'saving_transaction',
             sourceId: $transaction->id,
             entryDate: $transaction->transaction_date,
-            referenceNumber:
-                $transaction->transaction_code,
+            referenceNumber: $transaction->transaction_code,
             description: $description,
             userId: $transaction->user_id,
             lines: $isDeposit
                 ? [
                     [
                         'accounting_account_id' =>
-                            $cashAccountId,
+                        $cashAccountId,
 
                         'description' =>
-                            $description,
+                        $description,
 
                         'debit' => $amount,
                         'credit' => 0,
 
                         'member_id' =>
-                            $transaction->member_id,
+                        $transaction->member_id,
                     ],
                     [
                         'accounting_account_id' =>
-                            $savingAccountId,
+                        $savingAccountId,
 
                         'description' =>
-                            $description,
+                        $description,
 
                         'debit' => 0,
                         'credit' => $amount,
 
                         'member_id' =>
-                            $transaction->member_id,
+                        $transaction->member_id,
                     ],
                 ]
                 : [
                     [
                         'accounting_account_id' =>
-                            $savingAccountId,
+                        $savingAccountId,
 
                         'description' =>
-                            $description,
+                        $description,
 
                         'debit' => $amount,
                         'credit' => 0,
 
                         'member_id' =>
-                            $transaction->member_id,
+                        $transaction->member_id,
                     ],
                     [
                         'accounting_account_id' =>
-                            $cashAccountId,
+                        $cashAccountId,
 
                         'description' =>
-                            $description,
+                        $description,
 
                         'debit' => 0,
                         'credit' => $amount,
 
                         'member_id' =>
-                            $transaction->member_id,
+                        $transaction->member_id,
                     ],
                 ]
         );
     }
+
+    public function recordManualExpense(
+        CashTransaction $transaction
+    ): ?JournalEntry {
+        if (
+            $transaction->direction !== 'expense'
+            || $transaction->source_type !== 'manual_expense'
+        ) {
+            throw new DomainException(
+                'Transaksi bukan pengeluaran operasional manual.'
+            );
+        }
+
+        $amount = $this->money(
+            $transaction->amount
+        );
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        /*
+     * Menentukan akun beban berdasarkan kategori.
+     */
+        $expenseMapping = match ($transaction->category) {
+            'Transportasi' =>
+            'transport_expense',
+
+            'Lainnya' =>
+            'other_expense',
+
+            default =>
+            'operating_expense',
+        };
+
+        /*
+     * Transfer menggunakan rekening Bank.
+     * Tunai dan metode lain menggunakan Kas.
+     */
+        $paymentAccountMapping =
+            $transaction->payment_method === 'transfer'
+            ? 'bank'
+            : 'cash';
+
+        $description = sprintf(
+            'Pengeluaran %s: %s',
+            $transaction->category,
+            $transaction->description
+        );
+
+        return $this->createPostedEntry(
+            sourceType: 'manual_expense',
+            sourceId: $transaction->id,
+            entryDate: $transaction->transaction_date,
+            referenceNumber: $transaction->transaction_code,
+            description: $description,
+            userId: $transaction->user_id,
+            lines: [
+                [
+                    'accounting_account_id' =>
+                    $this->accountId(
+                        $expenseMapping
+                    ),
+
+                    'description' =>
+                    $description,
+
+                    'debit' =>
+                    $amount,
+
+                    'credit' =>
+                    0,
+                ],
+                [
+                    'accounting_account_id' =>
+                    $this->accountId(
+                        $paymentAccountMapping
+                    ),
+
+                    'description' =>
+                    $description,
+
+                    'debit' =>
+                    0,
+
+                    'credit' =>
+                    $amount,
+                ],
+            ]
+        );
+    }
+
 
     public function recordLoanDisbursement(
         Loan $loan
@@ -189,49 +279,46 @@ class AccountingJournalService
         return $this->createPostedEntry(
             sourceType: 'loan_disbursement',
             sourceId: $loan->id,
-            entryDate:
-                $loan->start_date
+            entryDate: $loan->start_date
                 ?? $loan->application_date,
-            referenceNumber:
-                $loan->loan_number,
+            referenceNumber: $loan->loan_number,
             description: $description,
-            userId:
-                $loan->approved_by
+            userId: $loan->approved_by
                 ?? $loan->created_by,
             lines: [
                 [
                     'accounting_account_id' =>
-                        $this->accountId(
-                            'financing_receivable'
-                        ),
+                    $this->accountId(
+                        'financing_receivable'
+                    ),
 
                     'description' =>
-                        $description,
+                    $description,
 
                     'debit' => $amount,
                     'credit' => 0,
 
                     'member_id' =>
-                        $loan->member_id,
+                    $loan->member_id,
 
                     'loan_id' =>
-                        $loan->id,
+                    $loan->id,
                 ],
                 [
                     'accounting_account_id' =>
-                        $this->accountId('cash'),
+                    $this->accountId('cash'),
 
                     'description' =>
-                        $description,
+                    $description,
 
                     'debit' => 0,
                     'credit' => $amount,
 
                     'member_id' =>
-                        $loan->member_id,
+                    $loan->member_id,
 
                     'loan_id' =>
-                        $loan->id,
+                    $loan->id,
                 ],
             ]
         );
@@ -268,7 +355,7 @@ class AccountingJournalService
             max(
                 $this->money(
                     $payment->profit_share_amount
-                    ?? 0
+                        ?? 0
                 ),
                 0
             ),
@@ -279,7 +366,7 @@ class AccountingJournalService
             max(
                 $this->money(
                     $payment->administration_fee
-                    ?? 0
+                        ?? 0
                 ),
                 0
             ),
@@ -291,8 +378,8 @@ class AccountingJournalService
 
         $principal = $this->money(
             $amount
-            - $profitShare
-            - $administration
+                - $profitShare
+                - $administration
         );
 
         $description = sprintf(
@@ -306,82 +393,82 @@ class AccountingJournalService
         $lines = [
             [
                 'accounting_account_id' =>
-                    $this->accountId('cash'),
+                $this->accountId('cash'),
 
                 'description' =>
-                    $description,
+                $description,
 
                 'debit' => $amount,
                 'credit' => 0,
 
                 'member_id' =>
-                    $loan->member_id,
+                $loan->member_id,
 
                 'loan_id' =>
-                    $loan->id,
+                $loan->id,
             ],
         ];
 
         if ($principal > 0) {
             $lines[] = [
                 'accounting_account_id' =>
-                    $this->accountId(
-                        'financing_receivable'
-                    ),
+                $this->accountId(
+                    'financing_receivable'
+                ),
 
                 'description' =>
-                    'Pengembalian pokok pembiayaan',
+                'Pengembalian pokok pembiayaan',
 
                 'debit' => 0,
                 'credit' => $principal,
 
                 'member_id' =>
-                    $loan->member_id,
+                $loan->member_id,
 
                 'loan_id' =>
-                    $loan->id,
+                $loan->id,
             ];
         }
 
         if ($profitShare > 0) {
             $lines[] = [
                 'accounting_account_id' =>
-                    $this->accountId(
-                        'profit_share_revenue'
-                    ),
+                $this->accountId(
+                    'profit_share_revenue'
+                ),
 
                 'description' =>
-                    'Pendapatan bagi hasil',
+                'Pendapatan bagi hasil',
 
                 'debit' => 0,
                 'credit' => $profitShare,
 
                 'member_id' =>
-                    $loan->member_id,
+                $loan->member_id,
 
                 'loan_id' =>
-                    $loan->id,
+                $loan->id,
             ];
         }
 
         if ($administration > 0) {
             $lines[] = [
                 'accounting_account_id' =>
-                    $this->accountId(
-                        'administration_revenue'
-                    ),
+                $this->accountId(
+                    'administration_revenue'
+                ),
 
                 'description' =>
-                    'Pendapatan administrasi',
+                'Pendapatan administrasi',
 
                 'debit' => 0,
                 'credit' => $administration,
 
                 'member_id' =>
-                    $loan->member_id,
+                $loan->member_id,
 
                 'loan_id' =>
-                    $loan->id,
+                $loan->id,
             ];
         }
 
@@ -389,8 +476,7 @@ class AccountingJournalService
             sourceType: 'installment_payment',
             sourceId: $payment->id,
             entryDate: $payment->payment_date,
-            referenceNumber:
-                $payment->payment_code,
+            referenceNumber: $payment->payment_code,
             description: $description,
             userId: $payment->user_id,
             lines: $lines
@@ -430,41 +516,38 @@ class AccountingJournalService
         return $this->createPostedEntry(
             sourceType: 'shu_allocation',
             sourceId: $period->id,
-            entryDate:
-                $period->calculation_date,
-            referenceNumber:
-                $period->code,
+            entryDate: $period->calculation_date,
+            referenceNumber: $period->code,
             description: $description,
-            userId:
-                $period->approved_by,
+            userId: $period->approved_by,
             lines: [
                 [
                     'accounting_account_id' =>
-                        $this->accountId(
-                            'current_shu'
-                        ),
+                    $this->accountId(
+                        'current_shu'
+                    ),
 
                     'description' =>
-                        'Pengurangan SHU tahun berjalan',
+                    'Pengurangan SHU tahun berjalan',
 
                     'debit' =>
-                        $allocatedTotal,
+                    $allocatedTotal,
 
                     'credit' => 0,
                 ],
                 [
                     'accounting_account_id' =>
-                        $this->accountId(
-                            'shu_payable'
-                        ),
+                    $this->accountId(
+                        'shu_payable'
+                    ),
 
                     'description' =>
-                        'Utang SHU kepada anggota',
+                    'Utang SHU kepada anggota',
 
                     'debit' => 0,
 
                     'credit' =>
-                        $allocatedTotal,
+                    $allocatedTotal,
                 ],
             ]
         );
@@ -501,40 +584,39 @@ class AccountingJournalService
             sourceType: 'shu_payment',
             sourceId: $payment->id,
             entryDate: $payment->payment_date,
-            referenceNumber:
-                $payment->payment_code,
+            referenceNumber: $payment->payment_code,
             description: $description,
             userId: $payment->user_id,
             lines: [
                 [
                     'accounting_account_id' =>
-                        $this->accountId(
-                            'shu_payable'
-                        ),
+                    $this->accountId(
+                        'shu_payable'
+                    ),
 
                     'description' =>
-                        $description,
+                    $description,
 
                     'debit' => $amount,
                     'credit' => 0,
 
                     'member_id' =>
-                        $allocation->member_id,
+                    $allocation->member_id,
                 ],
                 [
                     'accounting_account_id' =>
-                        $this->accountId(
-                            'cash'
-                        ),
+                    $this->accountId(
+                        'cash'
+                    ),
 
                     'description' =>
-                        $description,
+                    $description,
 
                     'debit' => 0,
                     'credit' => $amount,
 
                     'member_id' =>
-                        $allocation->member_id,
+                    $allocation->member_id,
                 ],
             ]
         );
@@ -553,36 +635,34 @@ class AccountingJournalService
             ->map(function (array $line): array {
                 return [
                     'accounting_account_id' =>
-                        (int) $line[
-                            'accounting_account_id'
-                        ],
+                    (int) $line['accounting_account_id'],
 
                     'description' =>
-                        $line['description']
+                    $line['description']
                         ?? null,
 
                     'debit' => $this->money(
                         $line['debit']
-                        ?? 0
+                            ?? 0
                     ),
 
                     'credit' => $this->money(
                         $line['credit']
-                        ?? 0
+                            ?? 0
                     ),
 
                     'member_id' =>
-                        $line['member_id']
+                    $line['member_id']
                         ?? null,
 
                     'loan_id' =>
-                        $line['loan_id']
+                    $line['loan_id']
                         ?? null,
                 ];
             })
             ->filter(
-                fn (array $line): bool =>
-                    $line['debit'] > 0
+                fn(array $line): bool =>
+                $line['debit'] > 0
                     || $line['credit'] > 0
             )
             ->values();
@@ -654,31 +734,31 @@ class AccountingJournalService
 
                 $entry = JournalEntry::create([
                     'entry_date' =>
-                        $entryDate,
+                    $entryDate,
 
                     'reference_number' =>
-                        $referenceNumber,
+                    $referenceNumber,
 
                     'description' =>
-                        $description,
+                    $description,
 
                     'source_type' =>
-                        $sourceType,
+                    $sourceType,
 
                     'source_id' =>
-                        $sourceId,
+                    $sourceId,
 
                     'status' =>
-                        'posted',
+                    'posted',
 
                     'created_by' =>
-                        $userId,
+                    $userId,
 
                     'posted_by' =>
-                        $userId,
+                    $userId,
 
                     'posted_at' =>
-                        now(),
+                    now(),
                 ]);
 
                 foreach (
@@ -724,7 +804,7 @@ class AccountingJournalService
         }
 
         return (int)
-            $mapping->accounting_account_id;
+        $mapping->accounting_account_id;
     }
 
     private function money(

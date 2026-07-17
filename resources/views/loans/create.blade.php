@@ -6,23 +6,74 @@
 
 @section('content')
 
-    <div class="mx-auto max-w-5xl">
+    @php
+        $minimumLoan = (float) ($setting->minimum_loan_amount ?? 0);
+
+        $maximumLoan = $setting->maximum_loan_amount !== null
+            ? (float) $setting->maximum_loan_amount
+            : null;
+
+        $defaultTenor = (int) old(
+            'tenor_months',
+            $setting->default_tenor_months ?? 10
+        );
+
+        $defaultTenor = min(
+            max($defaultTenor, 1),
+            10
+        );
+    @endphp
+
+    <div class="mx-auto max-w-6xl">
+
+        <div class="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+
+            <a
+                href="{{ route('loans.index') }}"
+                class="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-emerald-600">
+
+                <i data-lucide="arrow-left" class="h-5 w-5"></i>
+
+                Kembali ke daftar pinjaman
+            </a>
+
+            <div class="inline-flex w-fit items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700">
+
+                <i data-lucide="info" class="h-4 w-4"></i>
+
+                Bagi hasil 1,5% dari seluruh pokok
+
+            </div>
+
+        </div>
 
         @if ($errors->any())
 
-            <div class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5">
+            <div class="mb-6 rounded-3xl border border-red-200 bg-red-50 p-5">
 
-                <p class="text-sm font-semibold text-red-700">
-                    Pengajuan belum dapat disimpan
-                </p>
+                <div class="flex gap-4">
 
-                <ul class="mt-2 list-inside list-disc space-y-1 text-xs text-red-600">
+                    <div class="h-fit rounded-2xl bg-red-100 p-3 text-red-600">
+                        <i data-lucide="triangle-alert" class="h-6 w-6"></i>
+                    </div>
 
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
+                    <div>
 
-                </ul>
+                        <p class="font-bold text-red-800">
+                            Pengajuan belum dapat disimpan
+                        </p>
+
+                        <ul class="mt-3 list-inside list-disc space-y-1 text-sm text-red-600">
+
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+
+                        </ul>
+
+                    </div>
+
+                </div>
 
             </div>
 
@@ -32,78 +83,246 @@
             action="{{ route('loans.store') }}"
             method="POST"
             x-data="{
-                principal: Number(@js((float) old('principal_amount', $setting->minimum_loan_amount))),
-                rate: Number(@js((float) old('interest_rate', $setting->default_interest_rate))),
-                tenor: Number(@js((int) old('tenor_months', $setting->default_tenor_months))),
-                minimumLoan: Number(@js((float) $setting->minimum_loan_amount)),
-                maximumLoan: @js($setting->maximum_loan_amount ? (float) $setting->maximum_loan_amount : null),
+                principal: Number(
+                    @js((float) old(
+                        'principal_amount',
+                        $minimumLoan
+                    ))
+                ),
+
+                rate: Number(
+                    @js((float) old(
+                        'interest_rate',
+                        1.5
+                    ))
+                ),
+
+                tenor: Number(
+                    @js($defaultTenor)
+                ),
+
+                administration: Number(
+                    @js((float) old(
+                        'administration_fee',
+                        0
+                    ))
+                ),
+
+                collectionMethod: @js(
+                    old(
+                        'administration_collection_method',
+                        'separate'
+                    )
+                ),
+
+                administrationPaymentMethod: @js(
+                    old(
+                        'administration_payment_method',
+                        'cash'
+                    )
+                ),
+
+                minimumLoan: Number(
+                    @js($minimumLoan)
+                ),
+
+                maximumLoan: @js($maximumLoan),
 
                 formatRupiah(value) {
-                    return new Intl.NumberFormat('id-ID').format(
-                        Math.round(Number(value || 0))
+                    return new Intl.NumberFormat(
+                        'id-ID',
+                        {
+                            maximumFractionDigits: 0,
+                        }
+                    ).format(
+                        Math.round(
+                            Number(value || 0)
+                        )
                     );
                 },
 
-                get monthlyInterest() {
-                    return this.principal * (this.rate / 100);
-                },
-
                 get totalInterest() {
-                    return this.monthlyInterest * this.tenor;
+                    return Math.max(
+                        Number(this.principal || 0),
+                        0
+                    ) * (
+                        Math.max(
+                            Number(this.rate || 0),
+                            0
+                        ) / 100
+                    );
                 },
 
                 get totalPayment() {
-                    return this.principal + this.totalInterest;
+                    return (
+                        Math.max(
+                            Number(this.principal || 0),
+                            0
+                        )
+                        + this.totalInterest
+                    );
                 },
 
-                get monthlyPayment() {
-                    if (!this.tenor) {
+                get principalPerMonth() {
+                    if (
+                        !this.tenor
+                        || Number(this.tenor) < 1
+                    ) {
                         return 0;
                     }
 
-                    return this.totalPayment / this.tenor;
+                    return (
+                        Number(this.principal || 0)
+                        / Number(this.tenor)
+                    );
+                },
+
+                get interestPerMonth() {
+                    if (
+                        !this.tenor
+                        || Number(this.tenor) < 1
+                    ) {
+                        return 0;
+                    }
+
+                    return (
+                        this.totalInterest
+                        / Number(this.tenor)
+                    );
+                },
+
+                get monthlyPayment() {
+                    if (
+                        !this.tenor
+                        || Number(this.tenor) < 1
+                    ) {
+                        return 0;
+                    }
+
+                    return (
+                        this.totalPayment
+                        / Number(this.tenor)
+                    );
+                },
+
+                get netDisbursement() {
+                    if (
+                        this.collectionMethod
+                        === 'deducted'
+                    ) {
+                        return Math.max(
+                            Number(this.principal || 0)
+                            - Number(
+                                this.administration || 0
+                            ),
+                            0
+                        );
+                    }
+
+                    return Math.max(
+                        Number(this.principal || 0),
+                        0
+                    );
+                },
+
+                get administrationPaidSeparately() {
+                    if (
+                        this.collectionMethod
+                        !== 'separate'
+                    ) {
+                        return 0;
+                    }
+
+                    return Math.max(
+                        Number(
+                            this.administration || 0
+                        ),
+                        0
+                    );
                 },
 
                 get validPrincipal() {
-                    if (this.principal < this.minimumLoan) {
+                    const principal = Number(
+                        this.principal || 0
+                    );
+
+                    if (
+                        principal
+                        < this.minimumLoan
+                    ) {
                         return false;
                     }
 
                     if (
                         this.maximumLoan !== null
-                        && this.principal > this.maximumLoan
+                        && principal
+                            > Number(this.maximumLoan)
                     ) {
                         return false;
                     }
 
                     return true;
+                },
+
+                get validTenor() {
+                    const tenor = Number(
+                        this.tenor || 0
+                    );
+
+                    return (
+                        Number.isInteger(tenor)
+                        && tenor >= 1
+                        && tenor <= 10
+                    );
+                },
+
+                get validAdministration() {
+                    const administration = Number(
+                        this.administration || 0
+                    );
+
+                    const principal = Number(
+                        this.principal || 0
+                    );
+
+                    return (
+                        administration >= 0
+                        && administration < principal
+                    );
+                },
+
+                get canSubmit() {
+                    return (
+                        this.validPrincipal
+                        && this.validTenor
+                        && this.validAdministration
+                    );
                 }
             }">
 
             @csrf
 
-            <div class="grid gap-6 lg:grid-cols-3">
+            <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
 
-                <section class="space-y-6 lg:col-span-2">
+                <section class="space-y-6">
 
-                    <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    {{-- Informasi pengajuan --}}
+                    <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
 
-                        <div class="mb-6 flex items-center gap-3">
+                        <div class="mb-7 flex items-center gap-4">
 
                             <div class="rounded-2xl bg-emerald-100 p-3 text-emerald-600">
-
                                 <i data-lucide="hand-coins" class="h-6 w-6"></i>
-
                             </div>
 
                             <div>
 
-                                <h3 class="font-bold text-slate-900">
+                                <h2 class="font-bold text-slate-900">
                                     Informasi Pengajuan
-                                </h3>
+                                </h2>
 
-                                <p class="mt-1 text-xs text-slate-500">
-                                    Pilih anggota dan masukkan detail pinjaman.
+                                <p class="mt-1 text-xs leading-5 text-slate-500">
+                                    Pilih anggota dan tentukan tanggal pengajuan pinjaman.
                                 </p>
 
                             </div>
@@ -119,7 +338,10 @@
                                     class="mb-2 block text-sm font-semibold text-slate-700">
 
                                     Anggota
-                                    <span class="text-red-500">*</span>
+
+                                    <span class="text-red-500">
+                                        *
+                                    </span>
 
                                 </label>
 
@@ -127,7 +349,7 @@
                                     name="member_id"
                                     id="member_id"
                                     required
-                                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+                                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
 
                                     <option value="">
                                         Pilih anggota
@@ -141,17 +363,28 @@
                                                 (string) old(
                                                     'member_id',
                                                     $selectedMemberId
-                                                ) === (string) $member->id
+                                                )
+                                                ===
+                                                (string) $member->id
                                             )>
 
                                             {{ $member->member_number }}
-                                            — {{ $member->name }}
+                                            —
+                                            {{ $member->name }}
 
                                         </option>
 
                                     @endforeach
 
                                 </select>
+
+                                @error('member_id')
+
+                                    <p class="mt-2 text-xs font-medium text-red-600">
+                                        {{ $message }}
+                                    </p>
+
+                                @enderror
 
                             </div>
 
@@ -162,7 +395,10 @@
                                     class="mb-2 block text-sm font-semibold text-slate-700">
 
                                     Tanggal pengajuan
-                                    <span class="text-red-500">*</span>
+
+                                    <span class="text-red-500">
+                                        *
+                                    </span>
 
                                 </label>
 
@@ -170,10 +406,21 @@
                                     type="date"
                                     name="application_date"
                                     id="application_date"
-                                    value="{{ old('application_date', now()->format('Y-m-d')) }}"
+                                    value="{{ old(
+                                        'application_date',
+                                        now()->format('Y-m-d')
+                                    ) }}"
                                     max="{{ now()->format('Y-m-d') }}"
                                     required
-                                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+                                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+
+                                @error('application_date')
+
+                                    <p class="mt-2 text-xs font-medium text-red-600">
+                                        {{ $message }}
+                                    </p>
+
+                                @enderror
 
                             </div>
 
@@ -183,14 +430,17 @@
                                     for="principal_amount"
                                     class="mb-2 block text-sm font-semibold text-slate-700">
 
-                                    Nominal pinjaman
-                                    <span class="text-red-500">*</span>
+                                    Pokok pinjaman
+
+                                    <span class="text-red-500">
+                                        *
+                                    </span>
 
                                 </label>
 
                                 <div class="relative">
 
-                                    <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-sm font-semibold text-slate-500">
+                                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm font-semibold text-slate-400">
                                         Rp
                                     </span>
 
@@ -198,58 +448,58 @@
                                         type="number"
                                         name="principal_amount"
                                         id="principal_amount"
-                                        value="{{ old('principal_amount', (float) $setting->minimum_loan_amount) }}"
-                                        min="{{ (float) $setting->minimum_loan_amount }}"
-                                        @if ($setting->maximum_loan_amount)
-                                            max="{{ (float) $setting->maximum_loan_amount }}"
-                                        @endif
-                                        required
                                         x-model.number="principal"
-                                        placeholder="Masukkan nominal"
-                                        class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-12 pr-4 text-sm outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+                                        min="{{ $minimumLoan }}"
+                                        @if ($maximumLoan !== null)
+                                            max="{{ $maximumLoan }}"
+                                        @endif
+                                        step="1"
+                                        required
+                                        placeholder="Contoh: 1000000"
+                                        class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-12 pr-4 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
 
                                 </div>
 
-                                <div class="mt-2 space-y-1">
+                                <p class="mt-2 text-xs leading-5 text-slate-400">
 
-                                    <p class="text-xs text-slate-500">
+                                    Minimal
+                                    Rp{{ number_format(
+                                        $minimumLoan,
+                                        0,
+                                        ',',
+                                        '.'
+                                    ) }}
 
-                                        Minimal pinjaman:
-                                        <strong>
-                                            Rp{{ number_format($setting->minimum_loan_amount, 0, ',', '.') }}
-                                        </strong>
+                                    @if ($maximumLoan !== null)
 
-                                    </p>
-
-                                    @if ($setting->maximum_loan_amount)
-
-                                        <p class="text-xs text-slate-500">
-
-                                            Maksimal pinjaman:
-                                            <strong>
-                                                Rp{{ number_format($setting->maximum_loan_amount, 0, ',', '.') }}
-                                            </strong>
-
-                                        </p>
-
-                                    @else
-
-                                        <p class="text-xs text-slate-500">
-                                            Tidak ada batas maksimal pinjaman.
-                                        </p>
+                                        dan maksimal
+                                        Rp{{ number_format(
+                                            $maximumLoan,
+                                            0,
+                                            ',',
+                                            '.'
+                                        ) }}.
 
                                     @endif
 
-                                    <p
-                                        x-show="!validPrincipal"
-                                        x-cloak
-                                        class="text-xs font-semibold text-red-600">
+                                </p>
 
-                                        Nominal pinjaman berada di luar batas yang diperbolehkan.
+                                <p
+                                    x-show="!validPrincipal"
+                                    x-cloak
+                                    class="mt-2 text-xs font-medium text-red-600">
 
+                                    Nominal pinjaman berada di luar batas yang diperbolehkan.
+
+                                </p>
+
+                                @error('principal_amount')
+
+                                    <p class="mt-2 text-xs font-medium text-red-600">
+                                        {{ $message }}
                                     </p>
 
-                                </div>
+                                @enderror
 
                             </div>
 
@@ -259,8 +509,11 @@
                                     for="interest_rate"
                                     class="mb-2 block text-sm font-semibold text-slate-700">
 
-                                    Bunga flat per bulan
-                                    <span class="text-red-500">*</span>
+                                    Bagi hasil keseluruhan
+
+                                    <span class="text-red-500">
+                                        *
+                                    </span>
 
                                 </label>
 
@@ -270,26 +523,31 @@
                                         type="number"
                                         name="interest_rate"
                                         id="interest_rate"
-                                        value="{{ old('interest_rate', (float) $setting->default_interest_rate) }}"
+                                        x-model.number="rate"
                                         min="0"
                                         max="100"
                                         step="0.01"
+                                        readonly
                                         required
-                                        x-model.number="rate"
-                                        class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-4 pr-12 text-sm outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+                                        class="w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3.5 pr-12 text-sm font-semibold text-slate-700 outline-none">
 
-                                    <span class="absolute inset-y-0 right-0 flex items-center pr-4 font-semibold text-slate-500">
+                                    <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-sm font-semibold text-slate-400">
                                         %
                                     </span>
 
                                 </div>
 
-                                <p class="mt-2 text-xs text-slate-500">
-
-                                    Nilai default dari pengaturan:
-                                    {{ number_format($setting->default_interest_rate, 2, ',', '.') }}%
-
+                                <p class="mt-2 text-xs leading-5 text-slate-400">
+                                    Dihitung satu kali dari seluruh pokok, bukan 1,5% setiap bulan.
                                 </p>
+
+                                @error('interest_rate')
+
+                                    <p class="mt-2 text-xs font-medium text-red-600">
+                                        {{ $message }}
+                                    </p>
+
+                                @enderror
 
                             </div>
 
@@ -299,8 +557,11 @@
                                     for="tenor_months"
                                     class="mb-2 block text-sm font-semibold text-slate-700">
 
-                                    Tenor pinjaman
-                                    <span class="text-red-500">*</span>
+                                    Tenor
+
+                                    <span class="text-red-500">
+                                        *
+                                    </span>
 
                                 </label>
 
@@ -310,65 +571,311 @@
                                         type="number"
                                         name="tenor_months"
                                         id="tenor_months"
-                                        value="{{ old('tenor_months', $setting->default_tenor_months) }}"
-                                        min="1"
-                                        max="120"
-                                        required
                                         x-model.number="tenor"
-                                        class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-4 pr-20 text-sm outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+                                        min="1"
+                                        max="10"
+                                        step="1"
+                                        required
+                                        class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 pr-20 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
 
-                                    <span class="absolute inset-y-0 right-0 flex items-center pr-4 text-sm font-semibold text-slate-500">
-                                        Bulan
+                                    <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-sm text-slate-400">
+                                        bulan
                                     </span>
 
                                 </div>
 
-                                <p class="mt-2 text-xs text-slate-500">
+                                <p class="mt-2 text-xs text-slate-400">
+                                    Tenor maksimal 10 bulan.
+                                </p>
 
-                                    Tenor default:
-                                    {{ $setting->default_tenor_months }} bulan
+                                <p
+                                    x-show="!validTenor"
+                                    x-cloak
+                                    class="mt-2 text-xs font-medium text-red-600">
 
+                                    Tenor harus antara 1 sampai 10 bulan.
+
+                                </p>
+
+                                @error('tenor_months')
+
+                                    <p class="mt-2 text-xs font-medium text-red-600">
+                                        {{ $message }}
+                                    </p>
+
+                                @enderror
+
+                            </div>
+
+                        </div>
+
+                    </article>
+
+                    {{-- Administrasi --}}
+                    <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+
+                        <div class="mb-7 flex items-center gap-4">
+
+                            <div class="rounded-2xl bg-blue-100 p-3 text-blue-600">
+                                <i data-lucide="receipt-text" class="h-6 w-6"></i>
+                            </div>
+
+                            <div>
+
+                                <h2 class="font-bold text-slate-900">
+                                    Biaya Administrasi
+                                </h2>
+
+                                <p class="mt-1 text-xs leading-5 text-slate-500">
+                                    Administrasi dikenakan pada pinjaman dan tidak dimasukkan ke angsuran bulanan.
                                 </p>
 
                             </div>
 
+                        </div>
+
+                        <div class="grid gap-5 md:grid-cols-2">
+
+                            <div>
+
+                                <label
+                                    for="administration_fee"
+                                    class="mb-2 block text-sm font-semibold text-slate-700">
+
+                                    Nominal administrasi
+
+                                    <span class="text-red-500">
+                                        *
+                                    </span>
+
+                                </label>
+
+                                <div class="relative">
+
+                                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm font-semibold text-slate-400">
+                                        Rp
+                                    </span>
+
+                                    <input
+                                        type="number"
+                                        name="administration_fee"
+                                        id="administration_fee"
+                                        x-model.number="administration"
+                                        min="0"
+                                        step="1"
+                                        required
+                                        placeholder="Contoh: 20000"
+                                        class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-12 pr-4 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+
+                                </div>
+
+                                <p
+                                    x-show="!validAdministration"
+                                    x-cloak
+                                    class="mt-2 text-xs font-medium text-red-600">
+
+                                    Administrasi harus lebih kecil dari pokok pinjaman.
+
+                                </p>
+
+                                @error('administration_fee')
+
+                                    <p class="mt-2 text-xs font-medium text-red-600">
+                                        {{ $message }}
+                                    </p>
+
+                                @enderror
+
+                            </div>
+
+                            <div>
+
+                                <label
+                                    for="administration_collection_method"
+                                    class="mb-2 block text-sm font-semibold text-slate-700">
+
+                                    Cara pembayaran administrasi
+
+                                    <span class="text-red-500">
+                                        *
+                                    </span>
+
+                                </label>
+
+                                <select
+                                    name="administration_collection_method"
+                                    id="administration_collection_method"
+                                    x-model="collectionMethod"
+                                    required
+                                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+
+                                    <option value="separate">
+                                        Dibayar terpisah saat pencairan
+                                    </option>
+
+                                    <option value="deducted">
+                                        Dipotong dari uang pencairan
+                                    </option>
+
+                                </select>
+
+                                @error('administration_collection_method')
+
+                                    <p class="mt-2 text-xs font-medium text-red-600">
+                                        {{ $message }}
+                                    </p>
+
+                                @enderror
+
+                            </div>
+
                             <div class="md:col-span-2">
+
+                                <label
+                                    for="administration_payment_method"
+                                    class="mb-2 block text-sm font-semibold text-slate-700">
+
+                                    Metode pembayaran administrasi
+
+                                    <span class="text-red-500">
+                                        *
+                                    </span>
+
+                                </label>
+
+                                <select
+                                    name="administration_payment_method"
+                                    id="administration_payment_method"
+                                    x-model="administrationPaymentMethod"
+                                    required
+                                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+
+                                    <option value="cash">
+                                        Tunai
+                                    </option>
+
+                                    <option value="transfer">
+                                        Transfer
+                                    </option>
+
+                                    <option value="other">
+                                        Lainnya
+                                    </option>
+
+                                </select>
+
+                                <p class="mt-2 text-xs leading-5 text-slate-400">
+
+                                    <template x-if="collectionMethod === 'separate'">
+                                        <span>
+                                            Metode ini digunakan saat anggota membayar administrasi secara terpisah.
+                                        </span>
+                                    </template>
+
+                                    <template x-if="collectionMethod === 'deducted'">
+                                        <span>
+                                            Administrasi akan mengurangi uang yang diterima anggota.
+                                        </span>
+                                    </template>
+
+                                </p>
+
+                                @error('administration_payment_method')
+
+                                    <p class="mt-2 text-xs font-medium text-red-600">
+                                        {{ $message }}
+                                    </p>
+
+                                @enderror
+
+                            </div>
+
+                        </div>
+
+                    </article>
+
+                    {{-- Tujuan dan catatan --}}
+                    <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+
+                        <div class="mb-7 flex items-center gap-4">
+
+                            <div class="rounded-2xl bg-amber-100 p-3 text-amber-600">
+                                <i data-lucide="file-text" class="h-6 w-6"></i>
+                            </div>
+
+                            <div>
+
+                                <h2 class="font-bold text-slate-900">
+                                    Keterangan Pinjaman
+                                </h2>
+
+                                <p class="mt-1 text-xs leading-5 text-slate-500">
+                                    Tuliskan tujuan pengajuan dan catatan tambahan.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                        <div class="space-y-5">
+
+                            <div>
 
                                 <label
                                     for="purpose"
                                     class="mb-2 block text-sm font-semibold text-slate-700">
 
                                     Tujuan pinjaman
-                                    <span class="text-red-500">*</span>
+
+                                    <span class="text-red-500">
+                                        *
+                                    </span>
 
                                 </label>
 
                                 <textarea
                                     name="purpose"
                                     id="purpose"
-                                    rows="4"
+                                    rows="5"
+                                    maxlength="2000"
                                     required
-                                    placeholder="Jelaskan tujuan penggunaan pinjaman"
-                                    class="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">{{ old('purpose') }}</textarea>
+                                    placeholder="Contoh: Modal usaha, biaya pendidikan, atau kebutuhan lainnya"
+                                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm leading-6 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">{{ old('purpose') }}</textarea>
+
+                                @error('purpose')
+
+                                    <p class="mt-2 text-xs font-medium text-red-600">
+                                        {{ $message }}
+                                    </p>
+
+                                @enderror
 
                             </div>
 
-                            <div class="md:col-span-2">
+                            <div>
 
                                 <label
                                     for="notes"
                                     class="mb-2 block text-sm font-semibold text-slate-700">
 
                                     Catatan tambahan
-
                                 </label>
 
                                 <textarea
                                     name="notes"
                                     id="notes"
-                                    rows="3"
-                                    placeholder="Catatan tambahan jika diperlukan"
-                                    class="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">{{ old('notes') }}</textarea>
+                                    rows="4"
+                                    maxlength="2000"
+                                    placeholder="Catatan tambahan apabila diperlukan"
+                                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm leading-6 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">{{ old('notes') }}</textarea>
+
+                                @error('notes')
+
+                                    <p class="mt-2 text-xs font-medium text-red-600">
+                                        {{ $message }}
+                                    </p>
+
+                                @enderror
 
                             </div>
 
@@ -378,109 +885,200 @@
 
                 </section>
 
-                <!-- Simulasi -->
-                <aside>
+                {{-- Ringkasan --}}
+                <aside class="h-fit lg:sticky lg:top-6">
 
-                    <article class="sticky top-28 rounded-3xl bg-slate-950 p-6 text-white shadow-xl">
+                    <article class="overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-700 via-teal-800 to-slate-900 text-white shadow-xl">
 
-                        <div class="flex items-center gap-3">
+                        <div class="border-b border-white/10 p-6">
 
-                            <div class="rounded-2xl bg-emerald-500/20 p-3 text-emerald-400">
+                            <div class="flex items-center gap-3">
 
-                                <i data-lucide="calculator" class="h-6 w-6"></i>
+                                <div class="rounded-2xl bg-white/10 p-3">
+                                    <i data-lucide="calculator" class="h-6 w-6"></i>
+                                </div>
 
-                            </div>
+                                <div>
 
-                            <div>
+                                    <h2 class="font-bold">
+                                        Ringkasan Pinjaman
+                                    </h2>
 
-                                <h3 class="font-bold">
-                                    Simulasi Pinjaman
-                                </h3>
+                                    <p class="mt-1 text-xs text-emerald-100">
+                                        Perhitungan otomatis
+                                    </p>
 
-                                <p class="mt-1 text-xs text-slate-400">
-                                    Perhitungan bunga flat
-                                </p>
+                                </div>
 
                             </div>
 
                         </div>
 
-                        <div class="mt-6 space-y-4">
+                        <div class="space-y-4 p-6">
 
-                            <div class="rounded-2xl bg-white/5 p-4">
+                            <div class="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
 
-                                <p class="text-xs text-slate-400">
+                                <span class="text-sm text-emerald-100">
                                     Pokok pinjaman
-                                </p>
+                                </span>
 
-                                <p class="mt-2 text-lg font-bold">
+                                <strong class="text-right">
                                     Rp<span x-text="formatRupiah(principal)"></span>
-                                </p>
+                                </strong>
+
+                            </div>
+
+                            <div class="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
+
+                                <span class="text-sm text-emerald-100">
+                                    Bagi hasil
+                                    <span x-text="rate"></span>%
+                                </span>
+
+                                <strong class="text-right text-amber-300">
+                                    Rp<span x-text="formatRupiah(totalInterest)"></span>
+                                </strong>
+
+                            </div>
+
+                            <div class="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
+
+                                <span class="text-sm text-emerald-100">
+                                    Total tagihan
+                                </span>
+
+                                <strong class="text-right">
+                                    Rp<span x-text="formatRupiah(totalPayment)"></span>
+                                </strong>
 
                             </div>
 
                             <div class="grid grid-cols-2 gap-3">
 
-                                <div class="rounded-2xl bg-white/5 p-4">
+                                <div class="rounded-2xl bg-white/10 p-4">
 
-                                    <p class="text-xs text-slate-400">
-                                        Total bunga
+                                    <p class="text-xs text-emerald-100">
+                                        Pokok per bulan
                                     </p>
 
-                                    <p class="mt-2 text-sm font-bold text-amber-400">
-
-                                        Rp<span x-text="formatRupiah(totalInterest)"></span>
-
+                                    <p class="mt-2 text-sm font-bold">
+                                        Rp<span x-text="formatRupiah(principalPerMonth)"></span>
                                     </p>
 
                                 </div>
 
-                                <div class="rounded-2xl bg-white/5 p-4">
+                                <div class="rounded-2xl bg-white/10 p-4">
 
-                                    <p class="text-xs text-slate-400">
-                                        Total bayar
+                                    <p class="text-xs text-emerald-100">
+                                        Bagi hasil per bulan
                                     </p>
 
-                                    <p class="mt-2 text-sm font-bold text-blue-400">
-
-                                        Rp<span x-text="formatRupiah(totalPayment)"></span>
-
+                                    <p class="mt-2 text-sm font-bold">
+                                        Rp<span x-text="formatRupiah(interestPerMonth)"></span>
                                     </p>
 
                                 </div>
 
                             </div>
 
-                            <div class="rounded-2xl bg-emerald-500 p-5">
+                            <div class="rounded-2xl bg-white p-5 text-emerald-800">
 
-                                <p class="text-xs text-emerald-100">
-                                    Estimasi angsuran per bulan
+                                <p class="text-xs font-semibold uppercase tracking-wider text-emerald-600">
+                                    Angsuran bulanan
                                 </p>
 
-                                <p class="mt-2 text-2xl font-bold">
-
+                                <p class="mt-2 text-3xl font-bold">
                                     Rp<span x-text="formatRupiah(monthlyPayment)"></span>
-
                                 </p>
 
-                                <p class="mt-2 text-xs text-emerald-100">
-
+                                <p class="mt-2 text-xs text-slate-500">
                                     Selama
-                                    <span x-text="tenor || 0"></span>
+                                    <span
+                                        class="font-bold text-slate-700"
+                                        x-text="tenor">
+                                    </span>
                                     bulan
-
                                 </p>
 
                             </div>
 
-                            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div class="border-t border-white/10 pt-4">
 
-                                <p class="text-xs leading-6 text-slate-400">
+                                <div class="flex items-center justify-between gap-4">
 
-                                    Bunga menggunakan metode flat berdasarkan
-                                    pokok pinjaman awal setiap bulan.
+                                    <span class="text-sm text-emerald-100">
+                                        Administrasi
+                                    </span>
 
-                                </p>
+                                    <strong class="text-right">
+                                        Rp<span x-text="formatRupiah(administration)"></span>
+                                    </strong>
+
+                                </div>
+
+                                <div class="mt-4 flex items-center justify-between gap-4">
+
+                                    <span class="text-sm text-emerald-100">
+                                        Dana diterima
+                                    </span>
+
+                                    <strong class="text-right text-blue-200">
+                                        Rp<span x-text="formatRupiah(netDisbursement)"></span>
+                                    </strong>
+
+                                </div>
+
+                                <div
+                                    x-show="collectionMethod === 'separate'"
+                                    x-cloak
+                                    class="mt-4 rounded-2xl bg-amber-400/15 p-4">
+
+                                    <p class="text-xs leading-5 text-amber-100">
+                                        Administrasi sebesar
+                                        <strong>
+                                            Rp<span x-text="formatRupiah(administrationPaidSeparately)"></span>
+                                        </strong>
+                                        dibayar terpisah saat pencairan.
+                                    </p>
+
+                                </div>
+
+                                <div
+                                    x-show="collectionMethod === 'deducted'"
+                                    x-cloak
+                                    class="mt-4 rounded-2xl bg-blue-400/15 p-4">
+
+                                    <p class="text-xs leading-5 text-blue-100">
+                                        Administrasi dipotong dari pokok sehingga dana bersih yang diterima adalah
+                                        <strong>
+                                            Rp<span x-text="formatRupiah(netDisbursement)"></span>.
+                                        </strong>
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                            <div class="pt-3">
+
+                                <button
+                                    type="submit"
+                                    x-bind:disabled="!canSubmit"
+                                    class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50">
+
+                                    <i data-lucide="send" class="h-5 w-5"></i>
+
+                                    Simpan Pengajuan
+                                </button>
+
+                                <a
+                                    href="{{ route('loans.index') }}"
+                                    class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/20 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10">
+
+                                    <i data-lucide="x" class="h-5 w-5"></i>
+
+                                    Batal
+                                </a>
 
                             </div>
 
@@ -488,33 +1086,21 @@
 
                     </article>
 
+                    <div class="mt-5 rounded-3xl border border-blue-200 bg-blue-50 p-5">
+
+                        <div class="flex gap-3">
+
+                            <i data-lucide="shield-check" class="mt-0.5 h-5 w-5 shrink-0 text-blue-600"></i>
+
+                            <p class="text-xs leading-6 text-blue-700">
+                                Administrasi tidak dimasukkan ke total angsuran. Angsuran bulanan hanya terdiri dari pokok dan bagi hasil.
+                            </p>
+
+                        </div>
+
+                    </div>
+
                 </aside>
-
-            </div>
-
-            <div class="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-
-                <a
-                    href="{{ route('loans.index') }}"
-                    class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">
-
-                    <i data-lucide="arrow-left" class="h-5 w-5"></i>
-                    Kembali
-
-                </a>
-
-                <button
-                    type="submit"
-                    x-bind:disabled="!validPrincipal"
-                    x-bind:class="!validPrincipal
-                        ? 'cursor-not-allowed bg-slate-400 shadow-none'
-                        : 'bg-emerald-600 shadow-lg shadow-emerald-200 hover:bg-emerald-700'"
-                    class="inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold text-white">
-
-                    <i data-lucide="send" class="h-5 w-5"></i>
-                    Buat Pengajuan
-
-                </button>
 
             </div>
 

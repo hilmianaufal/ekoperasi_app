@@ -38,6 +38,10 @@ class Loan extends Model
         'outstanding_principal',
         'profit_share_paid',
         'administration_paid',
+        'administration_fee',
+        'administration_collection_method',
+        'administration_payment_method',
+        'administration_collected_at',
     ];
 
     protected function casts(): array
@@ -58,6 +62,8 @@ class Loan extends Model
             'outstanding_principal' => 'decimal:2',
             'profit_share_paid' => 'decimal:2',
             'administration_paid' => 'decimal:2',
+            'administration_fee' => 'decimal:2',
+            'administration_collected_at' => 'datetime',
         ];
     }
 
@@ -102,5 +108,48 @@ class Loan extends Model
             'cancelled' => 'Dibatalkan',
             default => ucfirst($this->status),
         };
+    }
+
+    public function getAdministrationCollectionMethodLabelAttribute(): string
+    {
+        return match ($this->administration_collection_method) {
+            'deducted' => 'Dipotong dari pencairan',
+            'separate' => 'Dibayar terpisah',
+            default => '-',
+        };
+    }
+
+    public function getAdministrationPaymentMethodLabelAttribute(): string
+    {
+        return match ($this->administration_payment_method) {
+            'cash' => 'Tunai',
+            'transfer' => 'Transfer',
+            'other' => 'Lainnya',
+            default => '-',
+        };
+    }
+
+    public function getNetDisbursementAmountAttribute(): float
+    {
+        $principal = (float) $this->principal_amount;
+        $administration = (float) $this->administration_fee;
+
+        if (
+            $this->administration_collection_method
+            === 'deducted'
+        ) {
+            return max(
+                round(
+                    $principal - $administration,
+                    2
+                ),
+                0
+            );
+        }
+
+        return round(
+            $principal,
+            2
+        );
     }
 }
