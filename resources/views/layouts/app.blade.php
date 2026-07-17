@@ -79,146 +79,206 @@
         </div>
 
         <!-- Navigasi -->
+        <!-- Navigasi -->
         <nav class="flex-1 space-y-1 overflow-y-auto px-4 py-6">
 
+            {{-- MENU UTAMA --}}
             <p class="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Menu utama
+                Menu Utama
             </p>
 
-            <a href="{{ route('dashboard') }}"
-                class="{{ request()->routeIs('dashboard')
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-                    flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+            <a href="{{ route('dashboard') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
 
-                <i data-lucide="layout-dashboard" class="h-5 w-5"></i>
-                <span>Dashboard</span>
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'dashboard'),
 
-            </a>
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'dashboard'),
+            ])>
 
-            <a href="{{ route('members.index') }}"
-                class="{{ request()->routeIs('members.*')
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-                    flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+                <i data-lucide="layout-dashboard" class="h-5 w-5 shrink-0">
+                </i>
 
-                <i data-lucide="users" class="h-5 w-5"></i>
-                <span>Data Anggota</span>
+                <span>
+                    Dashboard
+                </span>
 
             </a>
 
-            <a href="{{ route('savings.index') }}"
-                class="{{ request()->routeIs('savings.*')
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-                    flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+            <a href="{{ route('members.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
 
-                <i data-lucide="wallet-cards" class="h-5 w-5"></i>
-                <span>Simpanan</span>
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'members.*'),
 
-            </a>
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'members.*'),
+            ])>
 
-            <a href="{{ route('saving-types.index') }}"
-                class="{{ request()->routeIs('saving-types.*')
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-                    flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+                <i data-lucide="users-round" class="h-5 w-5 shrink-0">
+                </i>
 
-                <i data-lucide="list-settings" class="h-5 w-5"></i>
-                <span>Jenis Simpanan</span>
+                <span>
+                    Data Anggota
+                </span>
 
             </a>
 
-            <a href="{{ route('loans.index') }}"
-                class="{{ request()->routeIs('loans.*')
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-                    flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
-
-                <i data-lucide="hand-coins" class="h-5 w-5"></i>
-                <span>Pinjaman</span>
-
-            </a>
-
-            <a href="{{ route('installments.index') }}"
-                class="{{ request()->routeIs(['installments.*', 'installment-payments.*'])
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-                    flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
-
-                <i data-lucide="calendar-check-2" class="h-5 w-5"></i>
-                <span>Angsuran</span>
-
-            </a>
-            <a href="{{ route('shu-periods.index') }}"
-                class="{{ request()->routeIs('shu-periods.*')
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
-
-                <i data-lucide="badge-percent" class="h-5 w-5"></i>
-                <span>Sisa Hasil Usaha</span>
-            </a>
-
-            <a href="{{ route('shu-payments.index') }}"
-                class="{{ request()->routeIs('shu-payments.*')
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
-
-                <i data-lucide="receipt-text" class="h-5 w-5"></i>
-                <span>Pembayaran SHU</span>
-            </a>
-
-            <a href="{{ route('cash-transactions.index') }}"
-                class="{{ request()->routeIs('cash-transactions.*')
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-                    flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
-
-                <i data-lucide="arrow-left-right" class="h-5 w-5"></i>
-                <span>Kas Koperasi</span>
-
-            </a>
-            <a href="{{ route('cash-imports.index') }}"
-                class="{{ request()->routeIs('cash-imports.*')
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
-
-                <i data-lucide="file-spreadsheet" class="h-5 w-5"></i>
-                <span>Import Kas Bulanan</span>
-            </a>
-
+            {{-- SIMPANAN DAN PEMBIAYAAN --}}
             <p class="mb-3 mt-7 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Laporan dan sistem
+                Simpanan & Pembiayaan
             </p>
 
-            <a href="{{ route('reports.index') }}"
-                class="{{ request()->routeIs('reports.*')
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-                    flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+            <a href="{{ route('saving-types.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
 
-                <i data-lucide="file-chart-column" class="h-5 w-5"></i>
-                <span>Laporan</span>
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'saving-types.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'saving-types.*'),
+            ])>
+
+                {{-- Ikon Jenis Simpanan --}}
+                <i data-lucide="tags" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Jenis Simpanan
+                </span>
 
             </a>
-            <a href="{{ route('financial-statements.index') }}"
-                class="{{ request()->routeIs('financial-statements.*')
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
 
-                <i data-lucide="landmark" class="h-5 w-5"></i>
-                <span>Laporan Keuangan</span>
+            <a href="{{ route('savings.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'savings.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'savings.*'),
+            ])>
+
+                <i data-lucide="piggy-bank" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Simpanan
+                </span>
+
             </a>
+
+            <a href="{{ route('loans.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'loans.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'loans.*'),
+            ])>
+
+                <i data-lucide="hand-coins" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Pinjaman
+                </span>
+
+            </a>
+
+            <a href="{{ route('installments.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    ['installments.*', 'installment-payments.*', 'manual-installments.*']),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs([
+                    'installments.*',
+                    'installment-payments.*',
+                    'manual-installments.*',
+                ]),
+            ])>
+
+                <i data-lucide="calendar-check-2" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Angsuran
+                </span>
+
+            </a>
+
+            <a href="{{ route('shu-periods.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'shu-periods.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'shu-periods.*'),
+            ])>
+
+                <i data-lucide="badge-percent" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Sisa Hasil Usaha
+                </span>
+
+            </a>
+
+            <a href="{{ route('shu-payments.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'shu-payments.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'shu-payments.*'),
+            ])>
+
+                <i data-lucide="receipt-text" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Pembayaran SHU
+                </span>
+
+            </a>
+
+            {{-- KAS DAN OPERASIONAL --}}
+            <p class="mb-3 mt-7 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Kas & Operasional
+            </p>
+
+            <a href="{{ route('cash-transactions.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'cash-transactions.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'cash-transactions.*'),
+            ])>
+
+                <i data-lucide="wallet" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Kas Koperasi
+                </span>
+
+            </a>
+
             <a href="{{ route('expenses.index') }}" @class([
-                'flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition',
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
 
-                'bg-red-500/15 text-red-300' => request()->routeIs('expenses.*'),
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'expenses.*'),
 
-                'text-slate-300 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
                     'expenses.*'),
             ])>
 
@@ -230,52 +290,186 @@
                 </span>
 
             </a>
-            <a href="{{ route('trial-balance.index') }}"
-                class="{{ request()->routeIs('trial-balance.*')
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
 
-                <i data-lucide="scale" class="h-5 w-5"></i>
-                <span>Neraca Saldo</span>
+            <a href="{{ route('cash-imports.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'cash-imports.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'cash-imports.*'),
+            ])>
+
+                <i data-lucide="file-spreadsheet" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Import Kas Bulanan
+                </span>
+
             </a>
 
-            <a href="{{ route('data-imports.index') }}"
-                class="{{ request()->routeIs('data-imports.*')
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+            {{-- LAPORAN DAN AKUNTANSI --}}
+            <p class="mb-3 mt-7 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Laporan & Akuntansi
+            </p>
 
-                <i data-lucide="file-up" class="h-5 w-5"></i>
-                <span>Import Data Awal</span>
+            {{-- Menu baru Rekapan Bulanan --}}
+            <a href="{{ route('monthly-reports.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'monthly-reports.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'monthly-reports.*'),
+            ])>
+
+                <i data-lucide="calendar-range" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Rekapan Bulanan
+                </span>
+
             </a>
-            <a href="{{ route('accounting-accounts.index') }}"
-                class="{{ request()->routeIs('accounting-accounts.*')
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
 
-                <i data-lucide="list-tree" class="h-5 w-5"></i>
-                <span>Daftar Akun</span>
+            <a href="{{ route('reports.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'reports.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'reports.*'),
+            ])>
+
+                <i data-lucide="bar-chart-3" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Laporan
+                </span>
+
             </a>
 
-            <a href="{{ route('journal-entries.index') }}"
-                class="{{ request()->routeIs('journal-entries.*')
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-        flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
+            <a href="{{ route('financial-statements.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
 
-                <i data-lucide="book-open-check" class="h-5 w-5"></i>
-                <span>Jurnal Umum</span>
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'financial-statements.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'financial-statements.*'),
+            ])>
+
+                <i data-lucide="landmark" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Laporan Keuangan
+                </span>
+
             </a>
-            <a href="{{ route('settings.edit') }}"
-                class="{{ request()->routeIs('settings.*')
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white' }}
-                    flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium">
 
-                <i data-lucide="settings" class="h-5 w-5"></i>
-                <span>Pengaturan</span>
+            <a href="{{ route('trial-balance.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'trial-balance.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'trial-balance.*'),
+            ])>
+
+                <i data-lucide="scale" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Neraca Saldo
+                </span>
+
+            </a>
+
+            <a href="{{ route('journal-entries.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'journal-entries.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'journal-entries.*'),
+            ])>
+
+                <i data-lucide="book-open-check" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Jurnal Umum
+                </span>
+
+            </a>
+
+            <a href="{{ route('accounting-accounts.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'accounting-accounts.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'accounting-accounts.*'),
+            ])>
+
+                <i data-lucide="list-tree" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Daftar Akun
+                </span>
+
+            </a>
+
+            {{-- SISTEM --}}
+            <p class="mb-3 mt-7 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Sistem
+            </p>
+
+            <a href="{{ route('data-imports.index') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'data-imports.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'data-imports.*'),
+            ])>
+
+                <i data-lucide="file-up" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Import Data Awal
+                </span>
+
+            </a>
+
+            <a href="{{ route('settings.edit') }}" @class([
+                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+
+                'bg-emerald-500 text-white shadow-lg shadow-emerald-950/30' => request()->routeIs(
+                    'settings.*'),
+
+                'text-slate-400 hover:bg-white/10 hover:text-white' => !request()->routeIs(
+                    'settings.*'),
+            ])>
+
+                <i data-lucide="settings" class="h-5 w-5 shrink-0">
+                </i>
+
+                <span>
+                    Pengaturan
+                </span>
 
             </a>
 

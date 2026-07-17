@@ -14,6 +14,7 @@ use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\ManualInstallmentController;
 use App\Http\Controllers\MemberController;
+use App\Http\Controllers\MonthlyReportController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SavingTransactionController;
 use App\Http\Controllers\SavingTypeController;
@@ -310,6 +311,16 @@ Route::middleware('auth')->group(function () {
         InstallmentPaymentController::class,
         'edit',
     ])->name('installment-payments.edit');
+
+    Route::get('/monthly-reports', [
+        MonthlyReportController::class,
+        'index',
+    ])->name('monthly-reports.index');
+
+    Route::get('/monthly-reports/export/excel', [
+        MonthlyReportController::class,
+        'excel',
+    ])->name('monthly-reports.excel');
 
     Route::put('/installment-payments/{installmentPayment}', [
         InstallmentPaymentController::class,
